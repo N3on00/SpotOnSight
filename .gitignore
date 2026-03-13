@@ -1,0 +1,17 @@
+**/.venv/
+**/node_modules/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/dist/
+**/.DS_Store
+*.log
+.env
+.env.*
+!.env.example
+.tile_cache/
+cache/
+frontend/.vite/
+mobile/capacitor/android/.gradle/
+mobile/capacitor/android/app/build/
+mobile/capacitor/ios/App/App/public/

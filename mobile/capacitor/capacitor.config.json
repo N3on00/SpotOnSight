@@ -1,0 +1,32 @@
+{
+  "appId": "ch.spotonsight.mobile",
+  "appName": "SpotOnSight",
+  "webDir": "../../frontend/dist",
+  "android": {
+    "path": "./android"
+  },
+  "ios": {
+    "path": "./ios"
+  },
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 450,
+      "launchAutoHide": true,
+      "showSpinner": false,
+      "androidScaleType": "CENTER_CROP"
+    },
+    "Keyboard": {
+      "resize": "body",
+      "resizeOnFullScreen": true
+    },
+    "StatusBar": {
+      "style": "DEFAULT",
+      "backgroundColor": "#1f7c72"
+    }
+  }
+}

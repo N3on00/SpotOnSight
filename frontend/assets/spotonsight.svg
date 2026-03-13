@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="SpotOnSight">
+  <defs>
+    <linearGradient id="sos-bg" x1="10%" y1="10%" x2="90%" y2="90%">
+      <stop offset="0%" stop-color="#2f8ca2" />
+      <stop offset="100%" stop-color="#1a5969" />
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#sos-bg)" />
+  <circle cx="32" cy="32" r="16" fill="none" stroke="#f5fbff" stroke-width="4" />
+  <path d="M24 40L30.5 25.5L40 22.5L33.5 37Z" fill="#f5fbff" />
+  <circle cx="32" cy="32" r="2.4" fill="#f5fbff" />
+</svg>

@@ -1,0 +1,134 @@
+<script setup>
+import { ref } from 'vue'
+import ActionButton from '../common/ActionButton.vue'
+import AppTextField from '../common/AppTextField.vue'
+
+const props = defineProps({
+  comments: { type: Array, default: () => [] },
+  commentsLoading: { type: Boolean, default: false },
+  commentsBusy: { type: Boolean, default: false },
+  commentDraft: { type: String, default: '' },
+  currentUserId: { type: String, default: '' },
+  onCommentDraftChange: { type: Function, default: null },
+  onCreateComment: { type: Function, default: null },
+  onUpdateComment: { type: Function, default: null },
+  onDeleteComment: { type: Function, default: null },
+})
+
+const editingCommentId = ref('')
+const editingCommentDraft = ref('')
+
+function updateCommentDraft(next) {
+  if (typeof props.onCommentDraftChange !== 'function') return
+  props.onCommentDraftChange(String(next || ''))
+}
+
+async function submitComment() {
+  if (typeof props.onCreateComment !== 'function') return
+  await props.onCreateComment(String(props.commentDraft || ''))
+}
+
+function isCommentOwner(comment) {
+  const me = String(props.currentUserId || '').trim()
+  const owner = String(comment?.user_id || '').trim()
+  return Boolean(me && owner && me === owner)
+}
+
+function beginEditComment(comment) {
+  if (!isCommentOwner(comment)) return
+  editingCommentId.value = String(comment?.id || '')
+  editingCommentDraft.value = String(comment?.message || '')
+}
+
+function cancelEditComment() {
+  editingCommentId.value = ''
+  editingCommentDraft.value = ''
+}
+
+async function saveCommentEdit(comment) {
+  if (typeof props.onUpdateComment !== 'function') return
+  const id = String(comment?.id || '').trim()
+  if (!id) return
+  const ok = await props.onUpdateComment(id, editingCommentDraft.value)
+  if (ok) cancelEditComment()
+}
+
+async function removeComment(comment) {
+  if (typeof props.onDeleteComment !== 'function') return
+  const id = String(comment?.id || '').trim()
+  if (!id) return
+  await props.onDeleteComment(id)
+}
+
+function formatCommentDate(value) {
+  const text = String(value || '').trim()
+  if (!text) return ''
+  const date = new Date(text)
+  if (Number.isNaN(date.getTime())) return text
+  return date.toLocaleString()
+}
+</script>
+
+<template>
+  <section class="comments-box">
+    <header class="d-flex align-items-center justify-content-between gap-2">
+      <h4 class="h6 mb-0">Comments</h4>
+      <span class="small text-secondary" v-if="commentsLoading">Loading...</span>
+    </header>
+
+    <div class="comments-create" v-if="typeof onCreateComment === 'function'">
+      <AppTextField
+        bare
+        class-name="form-control"
+        :model-value="commentDraft"
+        maxlength="2000"
+        placeholder="Write a comment"
+        aria-label="Comment message"
+        @update:model-value="updateCommentDraft"
+      />
+      <ActionButton
+        class-name="btn btn-outline-secondary"
+        icon="bi-chat-dots"
+        label="Post"
+        :disabled="commentsBusy"
+        @click="submitComment"
+      />
+    </div>
+
+    <div class="comments-empty text-secondary small" v-if="!commentsLoading && !comments.length">
+      No comments yet.
+    </div>
+
+    <div class="comments-list" v-else>
+      <article v-for="comment in comments" :key="comment.id" class="comment-row">
+        <div class="d-flex justify-content-between align-items-start gap-2">
+          <div class="small text-secondary">
+            <i class="bi bi-person-circle me-1"></i>{{ comment.user_id || 'unknown' }}
+          </div>
+          <div class="small text-secondary">{{ formatCommentDate(comment.updated_at || comment.created_at) }}</div>
+        </div>
+
+        <template v-if="editingCommentId === comment.id">
+          <AppTextField
+            bare
+            class-name="form-control"
+            v-model="editingCommentDraft"
+            maxlength="2000"
+            placeholder="Edit comment"
+            aria-label="Edit comment"
+          />
+          <div class="d-flex gap-2 mt-2">
+            <ActionButton class-name="btn btn-sm btn-outline-primary" label="Save" :disabled="commentsBusy" @click="saveCommentEdit(comment)" />
+            <ActionButton class-name="btn btn-sm btn-outline-secondary" label="Cancel" @click="cancelEditComment" />
+          </div>
+        </template>
+        <p v-else class="mb-2">{{ comment.message }}</p>
+
+        <div class="d-flex gap-2" v-if="isCommentOwner(comment) && editingCommentId !== comment.id">
+          <ActionButton class-name="btn btn-sm btn-outline-secondary" label="Edit" @click="beginEditComment(comment)" />
+          <ActionButton class-name="btn btn-sm btn-outline-danger" label="Delete" :disabled="commentsBusy" @click="removeComment(comment)" />
+        </div>
+      </article>
+    </div>
+  </section>
+</template>
