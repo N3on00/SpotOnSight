@@ -251,11 +251,16 @@ body {
 }
 
 .app-top-nav {
-  --app-top-nav-btn-height: 1.95rem;
+  --app-top-nav-btn-height: 2.14rem;
   position: sticky;
   top: 0.42rem;
   z-index: 1100;
   border-radius: 0.9rem;
+}
+
+.app-top-nav .btn {
+  line-height: 1.3;
+  overflow: visible;
 }
 
 .app-top-nav__inner {
@@ -310,17 +315,24 @@ body {
   scrollbar-width: none;
 }
 
+.app-top-nav__links--icon-only .app-top-nav__link {
+  justify-content: center;
+  padding-inline: 0;
+  width: var(--app-top-nav-btn-height);
+  min-width: var(--app-top-nav-btn-height);
+}
+
 .app-top-nav__links--primary::-webkit-scrollbar {
   display: none;
 }
 
 .app-top-nav__link {
-  height: var(--app-top-nav-btn-height);
   min-height: var(--app-top-nav-btn-height);
   font-size: 0.82rem;
-  padding: 0.28rem 0.6rem;
+  padding: 0.36rem 0.72rem;
   display: inline-flex;
   align-items: center;
+  line-height: 1.3;
   min-width: 0;
   box-sizing: border-box;
 }
@@ -338,11 +350,11 @@ body {
 }
 
 .app-top-nav__tool-btn {
-  height: var(--app-top-nav-btn-height);
   min-height: var(--app-top-nav-btn-height);
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
+  line-height: 1.3;
   min-width: 0;
   box-sizing: border-box;
 }
@@ -354,10 +366,11 @@ body {
 .app-top-nav .action-button__label {
   display: inline-block;
   flex: 1 1 auto;
+  line-height: 1.3;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   white-space: nowrap;
-  text-overflow: ellipsis;
+  text-overflow: clip;
 }
 
 .app-top-nav__user-trigger-btn {
@@ -405,7 +418,6 @@ body {
 }
 
 @supports ((-webkit-mask-image: linear-gradient(90deg, #000, transparent)) or (mask-image: linear-gradient(90deg, #000, transparent))) {
-  .app-top-nav .action-button__label,
   .app-top-nav__user-name {
     text-overflow: clip;
     -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 78%, transparent 100%);
@@ -1155,6 +1167,9 @@ select:-webkit-autofill:focus {
   border-color: rgba(var(--bs-primary-rgb), 0.45);
   box-shadow: 0 8px 20px rgba(17, 49, 62, 0.14);
   transform: translateY(-1px);
+}
+
+.spot-card-mini--pulse {
   animation: hoverOutlinePulse 280ms ease-out;
 }
 
@@ -2162,7 +2177,7 @@ code {
   }
 
   .app-top-nav {
-    --app-top-nav-btn-height: 2.18rem;
+    --app-top-nav-btn-height: 2.26rem;
   }
 
   .app-top-nav__brand {
@@ -2181,8 +2196,16 @@ code {
     width: 100%;
   }
 
+  .app-top-nav__links--icon-only {
+    justify-content: space-between;
+  }
+
   .app-top-nav__links--primary .app-top-nav__link:last-child {
     flex: 1 1 auto;
+  }
+
+  .app-top-nav__links--icon-only .app-top-nav__link:last-child {
+    flex: 0 0 var(--app-top-nav-btn-height);
   }
 
   .app-top-nav__tools {

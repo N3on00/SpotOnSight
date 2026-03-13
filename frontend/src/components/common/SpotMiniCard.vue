@@ -1,5 +1,5 @@
 <script setup>
-import { computed, useSlots } from 'vue'
+import { computed, ref, useSlots } from 'vue'
 import { firstImageSource } from '../../models/imageMapper'
 import ActionButton from './ActionButton.vue'
 
@@ -18,6 +18,7 @@ const props = defineProps({
 
 const emit = defineEmits(['open', 'go-to'])
 const slots = useSlots()
+const hoverPulseActive = ref(false)
 
 const preview = computed(() => firstImageSource(props.spot?.images))
 
@@ -66,16 +67,35 @@ function goToSpot(event) {
   event?.stopPropagation?.()
   emit('go-to', props.spot)
 }
+
+function triggerHoverPulse() {
+  if (!props.interactive) return
+  hoverPulseActive.value = false
+  if (typeof window === 'undefined') {
+    hoverPulseActive.value = true
+    return
+  }
+  window.requestAnimationFrame(() => {
+    hoverPulseActive.value = true
+  })
+}
+
+function clearHoverPulse() {
+  hoverPulseActive.value = false
+}
 </script>
 
 <template>
   <article
     class="spot-card-mini"
-    :class="{ 'spot-card-mini--interactive': interactive, 'interactive-hover': interactive }"
+    :class="{ 'spot-card-mini--interactive': interactive, 'interactive-hover': interactive, 'spot-card-mini--pulse': hoverPulseActive }"
     :role="interactive ? 'button' : undefined"
     :tabindex="interactive ? 0 : undefined"
     @click="openCard"
     @keydown="onKeydown"
+    @mouseenter="triggerHoverPulse"
+    @focus="triggerHoverPulse"
+    @animationend="clearHoverPulse"
   >
     <div class="spot-card-mini__media" v-if="preview">
       <img :src="preview" alt="spot image" loading="lazy" />

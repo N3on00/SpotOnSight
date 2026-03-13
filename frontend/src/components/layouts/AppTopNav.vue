@@ -65,7 +65,7 @@ const show = computed(() => {
   return route.name !== ROUTE_NAMES.AUTH
 })
 
-const navIconOnly = computed(() => isMobile.value || compactBySpace.value)
+const navIconOnly = computed(() => compactBySpace.value)
 
 const userAvatar = computed(() => {
   const raw = String(me.value?.avatar_image || '').trim()

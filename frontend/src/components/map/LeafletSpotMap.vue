@@ -33,6 +33,7 @@ let map = null
 let markersLayer = null
 let wheelAt = 0
 let pointer = null
+let isDisposed = false
 const previewIconCache = new Map()
 
 function escapeHtmlAttr(value) {
@@ -106,7 +107,7 @@ function compactEdgeHints(items) {
 }
 
 function updateEdgeHints() {
-  if (!map) {
+  if (!map || isDisposed) {
     edgeHints.value = []
     return
   }
@@ -212,7 +213,20 @@ function shouldIgnoreTap(ev) {
   return dt > 450 || moved > 12 || pointer.moved
 }
 
+function applyMaxBounds(bounds) {
+  if (!map || isDisposed) return
+  if (bounds && Array.isArray(bounds) && bounds.length === 2) {
+    map.options.maxBoundsViscosity = 0.7
+    map.setMaxBounds(bounds)
+    return
+  }
+
+  map.options.maxBoundsViscosity = 0
+  map.setMaxBounds(null)
+}
+
 onMounted(() => {
+  isDisposed = false
   const mapOptions = {
     zoomControl: true,
     scrollWheelZoom: true,
@@ -224,6 +238,12 @@ onMounted(() => {
   }
 
   map = L.map(host.value, mapOptions).setView(props.center, props.zoom)
+  if (typeof map.setMaxBoundsViscosity !== 'function') {
+    map.setMaxBoundsViscosity = (value) => {
+      map.options.maxBoundsViscosity = Number(value) || 0
+      return map
+    }
+  }
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 20,
@@ -257,12 +277,14 @@ onMounted(() => {
   })
 
   map.on('moveend zoomend', () => {
+    if (!map || isDisposed) return
     const c = map.getCenter()
     props.onViewportChange([c.lat, c.lng], map.getZoom())
     updateEdgeHints()
   })
 
   map.on('resize', () => {
+    if (!map || isDisposed) return
     updateEdgeHints()
   })
 
@@ -273,6 +295,7 @@ onMounted(() => {
   })
 
   map.on('click', (ev) => {
+    if (isDisposed) return
     const ignore = shouldIgnoreTap(ev)
     pointer = null
     if (ignore) {
@@ -283,10 +306,15 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  isDisposed = true
+  edgeHints.value = []
+  pointer = null
   if (map) {
+    map.off()
     map.remove()
     map = null
   }
+  markersLayer = null
 })
 
 watch(
@@ -300,7 +328,7 @@ watch(
 watch(
   () => [props.center[0], props.center[1], props.zoom],
   () => {
-    if (!map) return
+    if (!map || isDisposed) return
     const center = map.getCenter()
     const z = map.getZoom()
     if (
@@ -317,13 +345,7 @@ watch(
 watch(
   () => props.maxBounds,
   (newBounds) => {
-    if (!map) return
-    if (newBounds && Array.isArray(newBounds) && newBounds.length === 2) {
-      map.setMaxBounds(newBounds)
-      map.setMaxBoundsViscosity(0.7)
-    } else {
-      map.setMaxBounds(null)
-    }
+    applyMaxBounds(newBounds)
   },
 )
 

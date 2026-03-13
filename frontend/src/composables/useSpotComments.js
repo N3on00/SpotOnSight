@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 
 function normalizeComment(item) {
   const row = item && typeof item === 'object' ? item : {}
@@ -18,22 +18,43 @@ export function useSpotComments({ selectedSpot, detailsOpen, currentUserId, list
   const commentsLoading = ref(false)
   const commentsBusy = ref(false)
   const commentDraft = ref('')
+  let activeRequestId = 0
+  let isUnmounted = false
+
+  function isRequestCurrent(requestId, spotId) {
+    return !isUnmounted
+      && requestId === activeRequestId
+      && detailsOpen.value
+      && String(selectedSpot.value?.id || '').trim() === spotId
+  }
 
   async function loadComments() {
     const spotId = String(selectedSpot.value?.id || '').trim()
     if (!detailsOpen.value || !spotId) {
+      activeRequestId += 1
       comments.value = []
+      commentsLoading.value = false
       return
     }
 
+    const requestId = activeRequestId + 1
+    activeRequestId = requestId
     commentsLoading.value = true
     try {
       const rows = await listComments(spotId)
+      if (!isRequestCurrent(requestId, spotId)) return
       comments.value = (Array.isArray(rows) ? rows : []).map((entry) => normalizeComment(entry))
     } finally {
-      commentsLoading.value = false
+      if (requestId === activeRequestId && !isUnmounted) {
+        commentsLoading.value = false
+      }
     }
   }
+
+  onBeforeUnmount(() => {
+    isUnmounted = true
+    activeRequestId += 1
+  })
 
   watch(
     () => [detailsOpen.value, selectedSpot.value?.id],

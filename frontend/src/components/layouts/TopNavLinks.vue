@@ -10,7 +10,7 @@ defineProps({
 </script>
 
 <template>
-  <div class="app-top-nav__links app-top-nav__links--primary">
+  <div class="app-top-nav__links app-top-nav__links--primary" :class="{ 'app-top-nav__links--icon-only': navIconOnly }">
     <ActionButton
       v-for="entry in entries"
       :key="`app-nav-${entry.key}`"

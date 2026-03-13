@@ -14,11 +14,6 @@ export function useResponsiveTopNav({ show, notificationsOpen, userMenuOpen, rou
   const primaryLinksRoot = ref(null)
 
   function updateCompactMode() {
-    if (isMobile.value) {
-      compactBySpace.value = false
-      return
-    }
-
     const root = navRoot.value
     const primaryLinks = primaryLinksRoot.value
     if (!root || !primaryLinks) {
@@ -26,11 +21,18 @@ export function useResponsiveTopNav({ show, notificationsOpen, userMenuOpen, rou
       return
     }
 
+    const navInner = root.querySelector('.app-top-nav__inner')
     const hasOverflow = primaryLinks.scrollWidth > primaryLinks.clientWidth + 4
+    const innerOverflow = navInner
+      ? navInner.scrollWidth > navInner.clientWidth + 4
+      : root.scrollWidth > root.clientWidth + 4
     const clippedLabels = [...primaryLinks.querySelectorAll('.action-button__label')]
       .some((node) => Number(node?.scrollWidth || 0) > Number(node?.clientWidth || 0) + 1)
+    const isNarrowMobile = typeof window !== 'undefined'
+      && isMobile.value
+      && window.innerWidth <= 760
 
-    compactBySpace.value = hasOverflow || clippedLabels
+    compactBySpace.value = hasOverflow || innerOverflow || clippedLabels || isNarrowMobile
   }
 
   function syncNotificationAnchor() {
