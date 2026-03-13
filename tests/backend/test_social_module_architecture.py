@@ -12,32 +12,25 @@ if str(BACKEND_ROOT) not in sys.path:
 
 
 from api.routes import social as social_router_module  # noqa: E402
+from core.social import get_social_actor_specs  # noqa: E402
 
 
-def test_social_router_assembles_feature_routers(monkeypatch):
-    calls: list[str] = []
-
-    def make_factory(name: str):
-        def factory(_repos):
-            calls.append(name)
-            return APIRouter()
-
-        return factory
-
+def test_social_router_assembles_actor_routers(monkeypatch):
     monkeypatch.setattr(social_router_module, "_SOCIAL_ROUTER", None)
     monkeypatch.setattr(social_router_module, "repos", lambda: object())
-    monkeypatch.setattr(social_router_module, "create_profile_router", make_factory("profile"))
-    monkeypatch.setattr(social_router_module, "create_spots_router", make_factory("spots"))
-    monkeypatch.setattr(social_router_module, "create_favorites_router", make_factory("favorites"))
-    monkeypatch.setattr(social_router_module, "create_follows_router", make_factory("follows"))
-    monkeypatch.setattr(social_router_module, "create_blocks_router", make_factory("blocks"))
-    monkeypatch.setattr(social_router_module, "create_shares_router", make_factory("shares"))
-    monkeypatch.setattr(social_router_module, "create_support_router", make_factory("support"))
-    monkeypatch.setattr(social_router_module, "create_meetups_router", make_factory("meetups"))
-    monkeypatch.setattr(social_router_module, "create_comments_router", make_factory("comments"))
+    monkeypatch.setattr(
+        social_router_module,
+        "build_social_actor_routers",
+        lambda _repos: [APIRouter() for _ in range(9)],
+    )
 
-    _ = social_router_module.get_social_router()
-    assert calls == [
+    router = social_router_module.get_social_router()
+    assert len([route for route in router.routes if getattr(route, "path", None) is not None]) == 0
+
+
+def test_social_actor_specs_are_registered_from_dto_metadata() -> None:
+    names = [spec.name for spec in get_social_actor_specs()]
+    assert names == [
         "profile",
         "spots",
         "favorites",

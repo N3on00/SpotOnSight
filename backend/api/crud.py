@@ -1,6 +1,7 @@
 from functools import wraps
 import json
 from datetime import UTC, datetime
+from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Type, TypeVar
 
 from bson import ObjectId, json_util
@@ -10,6 +11,41 @@ from pymongo.errors import DuplicateKeyError
 
 # Generic type for Pydantic models
 T = TypeVar('T', bound=BaseModel)
+
+
+@dataclass
+class CrudRouteWrappers:
+    create: list[Callable[[Callable[..., Any]], Callable[..., Any]]] = field(default_factory=list)
+    read_all: list[Callable[[Callable[..., Any]], Callable[..., Any]]] = field(default_factory=list)
+    read: list[Callable[[Callable[..., Any]], Callable[..., Any]]] = field(default_factory=list)
+    update: list[Callable[[Callable[..., Any]], Callable[..., Any]]] = field(default_factory=list)
+    delete: list[Callable[[Callable[..., Any]], Callable[..., Any]]] = field(default_factory=list)
+
+
+@dataclass
+class CrudRouteConfig:
+    path: str | None = None
+    response_model: Any = None
+    status_code: int | None = None
+    method: str | None = None
+
+
+@dataclass
+class CrudRouteConfigs:
+    create: CrudRouteConfig = field(default_factory=CrudRouteConfig)
+    read_all: CrudRouteConfig = field(default_factory=CrudRouteConfig)
+    read: CrudRouteConfig = field(default_factory=CrudRouteConfig)
+    update: CrudRouteConfig = field(default_factory=CrudRouteConfig)
+    delete: CrudRouteConfig = field(default_factory=CrudRouteConfig)
+
+
+@dataclass
+class CrudRouteEnabled:
+    create: bool = True
+    read_all: bool = True
+    read: bool = True
+    update: bool = True
+    delete: bool = True
 
 
 class GenericCrudRouter:
@@ -24,6 +60,9 @@ class GenericCrudRouter:
         id_parser: Callable[[str], Any] | None = None,
         collection_path: str = "/",
         entity_path_name: str = "entity_id",
+        route_wrappers: CrudRouteWrappers | None = None,
+        route_configs: CrudRouteConfigs | None = None,
+        route_enabled: CrudRouteEnabled | None = None,
     ) -> None:
         self.model = model
         self.repository = repository
@@ -32,6 +71,9 @@ class GenericCrudRouter:
         self.id_parser = id_parser or self._validate_object_id
         self.collection_path = collection_path
         self.entity_path_name = entity_path_name
+        self.route_wrappers = route_wrappers or CrudRouteWrappers()
+        self.route_configs = route_configs or CrudRouteConfigs()
+        self.route_enabled = route_enabled or CrudRouteEnabled()
 
     def route_dependencies(self) -> list[Any]:
         return []
@@ -51,19 +93,24 @@ class GenericCrudRouter:
         return f"/{{{self.entity_path_name}}}"
 
     def include_create_route(self) -> bool:
-        return True
+        return self.route_enabled.create
 
     def include_read_all_route(self) -> bool:
-        return True
+        return self.route_enabled.read_all
 
     def include_read_route(self) -> bool:
-        return True
+        return self.route_enabled.read
 
     def include_update_route(self) -> bool:
-        return True
+        return self.route_enabled.update
 
     def include_delete_route(self) -> bool:
-        return True
+        return self.route_enabled.delete
+
+    def _route_path(self, config_path: str | None, fallback: str) -> str:
+        if config_path is None:
+            return fallback
+        return config_path
 
     def handle_exceptions(self, func: Callable) -> Callable:
         @wraps(func)
@@ -121,34 +168,84 @@ class GenericCrudRouter:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     def register_create_route(self, router: APIRouter) -> None:
-        @router.post(self.collection_path)
-        @self.handle_exceptions
         async def create(entity_data: Dict[str, Any] = Body(...)):
             return self.create_entity(entity_data)
 
+        wrapped = self.handle_exceptions(create)
+        for wrapper in reversed(self.route_wrappers.create):
+            wrapped = wrapper(wrapped)
+        config = self.route_configs.create
+        router.add_api_route(
+            self._route_path(config.path, self.collection_path),
+            wrapped,
+            methods=[config.method or "POST"],
+            response_model=config.response_model,
+            status_code=config.status_code or status.HTTP_200_OK,
+        )
+
     def register_read_all_route(self, router: APIRouter) -> None:
-        @router.get(self.collection_path)
-        @self.handle_exceptions
         async def read_all():
             return self.read_all_entities()
 
+        wrapped = self.handle_exceptions(read_all)
+        for wrapper in reversed(self.route_wrappers.read_all):
+            wrapped = wrapper(wrapped)
+        config = self.route_configs.read_all
+        router.add_api_route(
+            self._route_path(config.path, self.collection_path),
+            wrapped,
+            methods=[config.method or "GET"],
+            response_model=config.response_model,
+            status_code=config.status_code or status.HTTP_200_OK,
+        )
+
     def register_read_route(self, router: APIRouter) -> None:
-        @router.get(self.entity_route_path())
-        @self.handle_exceptions
         async def read(entity_id: str = Path(alias=self.entity_path_name)):
             return self.read_entity(self.parse_entity_id(entity_id))
 
+        wrapped = self.handle_exceptions(read)
+        for wrapper in reversed(self.route_wrappers.read):
+            wrapped = wrapper(wrapped)
+        config = self.route_configs.read
+        router.add_api_route(
+            self._route_path(config.path, self.entity_route_path()),
+            wrapped,
+            methods=[config.method or "GET"],
+            response_model=config.response_model,
+            status_code=config.status_code or status.HTTP_200_OK,
+        )
+
     def register_update_route(self, router: APIRouter) -> None:
-        @router.put(self.entity_route_path())
-        @self.handle_exceptions
         async def update(entity_id: str = Path(alias=self.entity_path_name), entity_data: Dict[str, Any] = Body(...)):
             return self.update_entity(self.parse_entity_id(entity_id), entity_data)
 
+        wrapped = self.handle_exceptions(update)
+        for wrapper in reversed(self.route_wrappers.update):
+            wrapped = wrapper(wrapped)
+        config = self.route_configs.update
+        router.add_api_route(
+            self._route_path(config.path, self.entity_route_path()),
+            wrapped,
+            methods=[config.method or "PUT"],
+            response_model=config.response_model,
+            status_code=config.status_code or status.HTTP_200_OK,
+        )
+
     def register_delete_route(self, router: APIRouter) -> None:
-        @router.delete(self.entity_route_path())
-        @self.handle_exceptions
         async def delete(entity_id: str = Path(alias=self.entity_path_name)):
             return self.delete_entity(self.parse_entity_id(entity_id))
+
+        wrapped = self.handle_exceptions(delete)
+        for wrapper in reversed(self.route_wrappers.delete):
+            wrapped = wrapper(wrapped)
+        config = self.route_configs.delete
+        router.add_api_route(
+            self._route_path(config.path, self.entity_route_path()),
+            wrapped,
+            methods=[config.method or "DELETE"],
+            response_model=config.response_model,
+            status_code=config.status_code or status.HTTP_200_OK,
+        )
 
     def build(self) -> APIRouter:
         router = APIRouter(
@@ -184,6 +281,9 @@ class AuthenticatedCrudRouter(GenericCrudRouter):
         id_parser: Callable[[str], Any] | None = None,
         collection_path: str = "/",
         entity_path_name: str = "entity_id",
+        route_wrappers: CrudRouteWrappers | None = None,
+        route_configs: CrudRouteConfigs | None = None,
+        route_enabled: CrudRouteEnabled | None = None,
     ) -> None:
         super().__init__(
             model=model,
@@ -193,6 +293,9 @@ class AuthenticatedCrudRouter(GenericCrudRouter):
             id_parser=id_parser,
             collection_path=collection_path,
             entity_path_name=entity_path_name,
+            route_wrappers=route_wrappers,
+            route_configs=route_configs,
+            route_enabled=route_enabled,
         )
         if auth_dependency is None:
             raise ValueError("AuthenticatedCrudRouter requires an auth dependency")
