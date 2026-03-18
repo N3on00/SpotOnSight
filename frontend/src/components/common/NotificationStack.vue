@@ -1,12 +1,16 @@
 <script setup>
 import { computed, reactive, watch } from 'vue'
 import { useApp } from '../../core/injection'
+import { NOTIFICATION_CATEGORIES } from '../../services/notificationService'
 import ActionButton from './ActionButton.vue'
 
 const app = useApp()
+const notify = app.service('notify')
 
 const notifications = computed(() => app.state.notifications)
 const detailsExpanded = reactive({})
+const hovered = reactive({})
+const RELEASE_DELAY_MS = 4000
 
 watch(
   notifications,
@@ -18,6 +22,7 @@ watch(
     for (const id of Object.keys(detailsExpanded)) {
       if (!activeIds.has(id)) {
         delete detailsExpanded[id]
+        delete hovered[id]
       }
     }
   },
@@ -100,12 +105,40 @@ function isDetailsExpanded(n) {
 function toggleDetails(n) {
   const id = String(n?.id || '')
   if (!id) return
-  detailsExpanded[id] = !detailsExpanded[id]
+  const nextExpanded = !detailsExpanded[id]
+  detailsExpanded[id] = nextExpanded
+
+  if (nextExpanded) {
+    notify.hold(n.id)
+    return
+  }
+
+  if (!hovered[id]) {
+    notify.release(n.id, RELEASE_DELAY_MS)
+  }
 }
 
 function close(id) {
   delete detailsExpanded[String(id)]
-  app.service('notify').remove(id)
+  delete hovered[String(id)]
+  notify.remove(id)
+}
+
+function onEnter(n) {
+  const id = String(n?.id || '')
+  if (!id) return
+  hovered[id] = true
+  notify.hold(n.id)
+}
+
+function onLeave(n) {
+  const id = String(n?.id || '')
+  if (!id) return
+  hovered[id] = false
+  if (detailsExpanded[id]) {
+    return
+  }
+  notify.release(n.id, RELEASE_DELAY_MS)
 }
 
 async function copyDetails(details) {
@@ -113,12 +146,14 @@ async function copyDetails(details) {
   try {
     await navigator.clipboard.writeText(details)
     app.service('notify').push({
+      category: NOTIFICATION_CATEGORIES.SYSTEM,
       level: 'success',
       title: 'Copied',
       message: 'Details copied to clipboard.',
     })
   } catch {
     app.service('notify').push({
+      category: NOTIFICATION_CATEGORIES.SYSTEM,
       level: 'warning',
       title: 'Clipboard Error',
       message: 'Could not copy details from browser.',
@@ -134,6 +169,8 @@ async function copyDetails(details) {
       :class="`notify-alert--${n.level || 'info'}`"
       v-for="n in notifications"
       :key="n.id"
+      @mouseenter="onEnter(n)"
+      @mouseleave="onLeave(n)"
     >
       <header class="d-flex align-items-center justify-content-between gap-2 mb-1">
         <h4 class="h6 mb-0">{{ titleOf(n) }}</h4>

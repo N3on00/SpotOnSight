@@ -10,14 +10,22 @@ services:
         condition: service_healthy
     ports:
       - "80:8080"
+      - "443:443"
     restart: unless-stopped
     read_only: true
     tmpfs:
       - /var/cache/nginx
       - /var/run
       - /tmp
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
     cap_drop:
       - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
     security_opt:
       - no-new-privileges:true
     healthcheck:
@@ -45,6 +53,10 @@ services:
       - /tmp
     cap_drop:
       - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
     security_opt:
       - no-new-privileges:true
     healthcheck:

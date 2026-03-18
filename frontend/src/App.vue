@@ -5,6 +5,7 @@ import NotificationStack from './components/common/NotificationStack.vue'
 import SosLoader from './components/common/SosLoader.vue'
 import AppTopNav from './components/layouts/AppTopNav.vue'
 import { useApp } from './core/injection'
+import { NOTIFICATION_CATEGORIES } from './services/notificationService'
 
 const app = useApp()
 const bootLoading = ref(true)
@@ -28,6 +29,7 @@ onMounted(async () => {
       return
     }
     app.service('notify').push({
+      category: NOTIFICATION_CATEGORIES.SYSTEM,
       level: 'error',
       title: 'Initial load failed',
       message: 'Some data could not be loaded on startup.',

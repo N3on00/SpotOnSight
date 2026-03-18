@@ -1,4 +1,5 @@
 import { resetAuthenticatedState } from './sessionReset'
+import { NOTIFICATION_CATEGORIES } from '../services/notificationService'
 
 export function handleUnauthorizedSession(ctx) {
   const activeToken = String(ctx.state.session.token || '').trim()
@@ -6,6 +7,7 @@ export function handleUnauthorizedSession(ctx) {
 
   resetAuthenticatedState(ctx.state)
   ctx.service('notify').push({
+    category: NOTIFICATION_CATEGORIES.ACCOUNT,
     level: 'warning',
     title: 'Session expired',
     message: 'Your credentials are no longer valid. Please sign in again.',

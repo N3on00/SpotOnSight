@@ -5,6 +5,7 @@ import {
   snapshotsEqual,
   subscriptionMatchesSpot,
 } from '../models/spotSubscriptions'
+import { NOTIFICATION_CATEGORIES } from './notificationService'
 
 function userIdOf(entry) {
   return String(entry?.id || entry?.follower?.id || '').trim()
@@ -74,6 +75,7 @@ export class ActivityWatchService {
 
             const who = String(follower.display_name || follower.username || 'A user')
             notifyService.push({
+              category: NOTIFICATION_CATEGORIES.SOCIAL,
               level: 'info',
               title: 'New follower',
               message: `${who} started following you.`,
@@ -86,6 +88,7 @@ export class ActivityWatchService {
 
             const who = String(request?.follower?.display_name || request?.follower?.username || 'A user')
             notifyService.push({
+              category: NOTIFICATION_CATEGORIES.SOCIAL,
               level: 'info',
               title: 'Follow request',
               message: `${who} requested to follow you.`,
@@ -136,6 +139,7 @@ export class ActivityWatchService {
             if (changedIds.length) changeSummary.push(`${changedIds.length} changed`)
 
             notifyService.push({
+              category: NOTIFICATION_CATEGORIES.MAP,
               level: 'success',
               title: 'Subscription update',
               message: `${changeSummary.join(', ')} spot(s): ${sub.label}`,
