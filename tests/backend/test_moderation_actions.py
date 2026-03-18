@@ -12,6 +12,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[2] / "backend"
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
+import core.social.actions as social_actions_module
 from core.social.actions import SocialActions
 from models.schemas import ModerationReportReviewRequest
 
@@ -136,6 +137,11 @@ def _matches(doc: dict, query: dict) -> bool:
         if doc.get(key) != value:
             return False
     return True
+
+
+@pytest.fixture(autouse=True)
+def _disable_index_initialization(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(social_actions_module, "ensure_indexes", lambda: None)
 
 
 def test_admin_can_see_hidden_spots_but_regular_users_cannot():
