@@ -45,6 +45,7 @@ function createDefaultState() {
         username: 'demo-user',
         display_name: 'Demo User',
         email: 'demo@example.test',
+        is_admin: true,
       },
     },
     spots: [
@@ -79,6 +80,8 @@ function createDefaultState() {
     loading: {
       authLogin: false,
       authRegister: false,
+      adminLoad: false,
+      adminAction: false,
       homeRefresh: false,
       socialReload: false,
       socialFollow: false,
@@ -110,6 +113,33 @@ function createDefaultState() {
       ],
       blockedUsers: [
         { id: 'user-6', username: 'blocked-user', display_name: 'Blocked User' },
+      ],
+      moderationNotifications: [],
+    },
+    admin: {
+      reports: [
+        {
+          id: 'report-1',
+          target_type: 'spot',
+          target_id: 'spot-1',
+          reason: 'spam',
+          details: 'Looks suspicious.',
+          status: 'open',
+          created_at: '2026-03-18T10:00:00Z',
+        },
+      ],
+      users: [
+        {
+          id: 'user-7',
+          username: 'repeat-offender',
+          display_name: 'Repeat Offender',
+          email: 'repeat@example.test',
+          account_status: 'watch',
+          account_status_reason: 'Posting timeout active.',
+          posting_timeout_until: '2026-03-19T10:00:00Z',
+          active_strike_weight: 4,
+          recent_strike_count: 2,
+        },
       ],
     },
     map: {
@@ -154,10 +184,19 @@ function createDefaultControllers(state) {
       favoritesOfUser: vi.fn(async () => state.spots.slice(0, 1)),
       lastError: vi.fn(() => ''),
     },
+    admin: {
+      loadReports: vi.fn(async () => state.admin.reports),
+      reviewReport: vi.fn(async () => state.admin.reports[0]),
+      loadUsers: vi.fn(async () => state.admin.users),
+      updateUserStatus: vi.fn(async () => state.admin.users[0]),
+      lastError: vi.fn(() => ''),
+    },
     social: {
       reloadFavorites: vi.fn(async () => state.favorites),
       toggleFavorite: vi.fn(async () => true),
       share: vi.fn(async () => true),
+      reportContent: vi.fn(async () => ({ id: 'report-1' })),
+      moderationNotifications: vi.fn(async () => []),
       follow: vi.fn(async () => true),
       unfollow: vi.fn(async () => true),
       removeFollower: vi.fn(async () => true),
@@ -407,6 +446,10 @@ export class AuthPageHarness extends RegisteredPageHarness {
   static screen = UI_SCREENS.AUTH
 }
 
+export class AdminPageHarness extends RegisteredPageHarness {
+  static screen = UI_SCREENS.ADMIN
+}
+
 export class HomePageHarness extends RegisteredPageHarness {
   static screen = UI_SCREENS.HOME
 }
@@ -432,6 +475,10 @@ export class SupportPageHarness extends RegisteredPageHarness {
 }
 
 export const PAGE_COMPONENTS = Object.freeze({
+  [UI_SCREENS.ADMIN]: Object.freeze({
+    [UI_SLOTS.HEADER]: Object.freeze([UI_COMPONENT_IDS.ADMIN_HERO]),
+    [UI_SLOTS.MAIN]: Object.freeze([UI_COMPONENT_IDS.ADMIN_PANEL]),
+  }),
   [UI_SCREENS.AUTH]: Object.freeze({
     [UI_SLOTS.HEADER]: Object.freeze([UI_COMPONENT_IDS.AUTH_HERO]),
     [UI_SLOTS.MAIN]: Object.freeze([UI_COMPONENT_IDS.AUTH_FORMS]),
@@ -464,6 +511,7 @@ export const PAGE_COMPONENTS = Object.freeze({
 })
 
 export const PAGE_ACTIONS = Object.freeze({
+  [UI_SCREENS.ADMIN]: Object.freeze([UI_ACTIONS.ADMIN_REFRESH]),
   [UI_SCREENS.AUTH]: Object.freeze([UI_ACTIONS.AUTH_HELP]),
   [UI_SCREENS.HOME]: Object.freeze([UI_ACTIONS.HOME_REFRESH]),
   [UI_SCREENS.MAP]: Object.freeze([UI_ACTIONS.MAP_RELOAD]),
@@ -474,6 +522,7 @@ export const PAGE_ACTIONS = Object.freeze({
 })
 
 export const PAGE_HARNESS_CLASSES = Object.freeze({
+  [UI_SCREENS.ADMIN]: AdminPageHarness,
   [UI_SCREENS.AUTH]: AuthPageHarness,
   [UI_SCREENS.HOME]: HomePageHarness,
   [UI_SCREENS.MAP]: MapPageHarness,

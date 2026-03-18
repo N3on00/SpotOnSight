@@ -64,4 +64,12 @@ export class SocialController extends BaseController {
   async followingOf(userId) {
     return this.service().followingOf(userId)
   }
+
+  async reportContent(targetType, targetId, reason, details) {
+    return this.service().reportContent(targetType, targetId, reason, details)
+  }
+
+  async moderationNotifications() {
+    return this.service().moderationNotifications()
+  }
 }

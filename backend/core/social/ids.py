@@ -76,6 +76,10 @@ def safe_user_projection() -> dict[str, int]:
         "avatar_image": 1,
         "social_accounts": 1,
         "follow_requires_approval": 1,
+        "is_admin": 1,
+        "account_status": 1,
+        "account_status_reason": 1,
+        "posting_timeout_until": 1,
         "created_at": 1,
     }
 

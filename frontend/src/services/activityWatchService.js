@@ -23,6 +23,7 @@ export class ActivityWatchService {
     this._seeded = false
     this._followerIds = new Set()
     this._requestIds = new Set()
+    this._moderationNotificationIds = new Set()
   }
 
   start() {
@@ -34,6 +35,7 @@ export class ActivityWatchService {
     this._seeded = false
     this._followerIds.clear()
     this._requestIds.clear()
+    this._moderationNotificationIds.clear()
   }
 
   async tick({ notify = true } = {}) {
@@ -95,6 +97,31 @@ export class ActivityWatchService {
 
         this._followerIds = nextFollowerIds
         this._requestIds = nextRequestIds
+
+        const moderationNotifications = await social.moderationNotifications()
+        const moderationList = Array.isArray(moderationNotifications) ? moderationNotifications : []
+        app.state.social.moderationNotifications = moderationList
+        const nextModerationIds = new Set(
+          moderationList
+            .map((entry) => String(entry?.id || '').trim())
+            .filter(Boolean),
+        )
+
+        if (notify && this._seeded) {
+          for (const entry of moderationList) {
+            const nid = String(entry?.id || '').trim()
+            if (!nid || this._moderationNotificationIds.has(nid)) continue
+            notifyService.push({
+              level: 'warning',
+              title: String(entry?.title || 'Moderation notice'),
+              message: String(entry?.message || 'Your content was reviewed by an admin.'),
+              details: String(entry?.details || ''),
+              sticky: true,
+            })
+          }
+        }
+
+        this._moderationNotificationIds = nextModerationIds
       } catch {
         // Social activity polling is optional for subscription checks.
       }

@@ -5,6 +5,7 @@ import HomeHero from '../components/home/HomeHero.vue'
 import HomeMapWidget from '../components/home/HomeMapWidget.vue'
 import HomeDiscover from '../components/home/HomeDiscover.vue'
 import {
+  createModerationActions,
   createSpotCommentActions,
   createSpotFavoriteAction,
   controllerLastError,
@@ -110,6 +111,7 @@ homeScreen.main({
     },
     onGoToSpot: (spot) => _goToSpot(app, router, spot),
     onToggleFavorite: createSpotFavoriteAction(app),
+    ...createModerationActions(app),
     onLoadUserProfile: async (userId) => {
       return app.controller('users').profile(userId)
     },

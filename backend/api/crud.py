@@ -626,6 +626,7 @@ class AuthSessionRouter(GenericCrudRouter):
             "avatar_image": self._as_text(user_doc.get("avatar_image")),
             "social_accounts": self._normalize_social_accounts(user_doc.get("social_accounts")),
             "follow_requires_approval": bool(user_doc.get("follow_requires_approval", False)),
+            "is_admin": bool(user_doc.get("is_admin", False)),
             "created_at": user_doc.get("created_at") or datetime.now(UTC),
         }
         return self.user_public_model.model_validate(payload)
@@ -713,6 +714,11 @@ class AuthSessionRouter(GenericCrudRouter):
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Incorrect username/email or password",
+                )
+            if self._normalize_login(user_doc.get("account_status")) == "banned":
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="This account has been banned",
                 )
 
             password_hash = self._as_text(user_doc.get("password_hash"))

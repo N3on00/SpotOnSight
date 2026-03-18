@@ -15,11 +15,13 @@ const props = defineProps({
   canEdit: { type: Boolean, default: true },
   canDelete: { type: Boolean, default: true },
   canShare: { type: Boolean, default: true },
+  canReport: { type: Boolean, default: true },
   onClose: { type: Function, required: true },
   onEdit: { type: Function, default: null },
   onDelete: { type: Function, default: null },
   onToggleFavorite: { type: Function, required: true },
   onShare: { type: Function, default: null },
+  onReport: { type: Function, default: null },
   onGoToSpot: { type: Function, default: null },
   onNotify: { type: Function, required: true },
   onLoadUserProfile: { type: Function, default: null },
@@ -72,6 +74,11 @@ function toggleFavorite() {
 function goToSpot() {
   if (typeof props.onGoToSpot !== 'function') return
   props.onGoToSpot(props.spot)
+}
+
+function reportSpot() {
+  if (!props.canReport || typeof props.onReport !== 'function') return
+  props.onReport(props.spot)
 }
 
 </script>
@@ -152,6 +159,13 @@ function goToSpot() {
             :label="isFavorite ? 'Unlike' : 'Like'"
             :disabled="favoriteBusy || !canFavorite"
             @click="toggleFavorite"
+          />
+          <ActionButton
+            v-if="canReport && typeof props.onReport === 'function'"
+            class-name="btn btn-outline-danger"
+            icon="bi-flag"
+            label="Report"
+            @click="reportSpot"
           />
         </div>
 

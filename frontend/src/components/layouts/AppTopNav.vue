@@ -5,6 +5,7 @@ import { useApp } from '../../core/injection'
 import { toImageSource } from '../../models/imageMapper'
 import {
   ROUTE_NAMES,
+  routeToAdmin,
   routeToAuth,
   routeToHome,
   routeToMap,
@@ -28,11 +29,15 @@ const userMenuOpen = ref(false)
 const expandedLogEntries = ref({})
 
 const navEntries = computed(() => {
-  return [
+  const items = [
     { key: ROUTE_NAMES.SOCIAL, label: 'Social', icon: 'bi-people', to: routeToSocial() },
     { key: ROUTE_NAMES.MAP, label: 'Map', icon: 'bi-map', to: routeToMap() },
     { key: ROUTE_NAMES.HOME, label: 'Home', icon: 'bi-house', to: routeToHome() },
   ]
+  if (Boolean(me.value?.is_admin)) {
+    items.unshift({ key: ROUTE_NAMES.ADMIN, label: 'Admin', icon: 'bi-shield-lock', to: routeToAdmin() })
+  }
+  return items
 })
 
 const me = computed(() => app.state.session.user || null)

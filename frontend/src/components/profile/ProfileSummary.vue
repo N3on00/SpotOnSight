@@ -20,7 +20,9 @@ const props = defineProps({
   followBusy: { type: Boolean, default: false },
   onFollowProfile: { type: Function, required: true },
   onUnfollowProfile: { type: Function, required: true },
+  onReportProfile: { type: Function, default: null },
   onGoToSpot: { type: Function, required: true },
+  onReportSpot: { type: Function, default: null },
   onToggleFavorite: { type: Function, required: true },
   onLoadUserProfile: { type: Function, required: true },
   onOpenProfile: { type: Function, required: true },
@@ -128,6 +130,11 @@ async function unfollowProfile() {
   await props.onUnfollowProfile()
 }
 
+async function reportProfile() {
+  if (typeof props.onReportProfile !== 'function') return
+  await props.onReportProfile(props.profile)
+}
+
 function editOwnProfile() {
   if (typeof props.onEditProfile !== 'function') return
   props.onEditProfile()
@@ -193,6 +200,12 @@ function setCommentDraft(next) {
               :busy="followBusy"
               busy-label="Saving..."
               @click="followProfile"
+            />
+            <ActionButton
+              class-name="btn btn-outline-danger"
+              icon="bi-flag"
+              label="Report account"
+              @click="reportProfile"
             />
           </div>
         </div>
@@ -264,6 +277,7 @@ function setCommentDraft(next) {
         :on-create-comment="createComment"
         :on-update-comment="updateComment"
         :on-delete-comment="deleteComment"
+        :on-report="props.onReportSpot"
       />
     </div>
   </section>

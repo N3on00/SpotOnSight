@@ -18,6 +18,14 @@ function asStringList(value) {
   return value.map((x) => String(x || '').trim()).filter(Boolean)
 }
 
+function asModerationStatus(value) {
+  const next = String(value || '').trim().toLowerCase()
+  if (next === 'flagged' || next === 'hidden') {
+    return next
+  }
+  return 'visible'
+}
+
 export function extractSpotId(raw) {
   if (!raw || typeof raw !== 'object') {
     return ''
@@ -47,6 +55,7 @@ export function normalizeSpot(raw) {
     images: asStringList(item.images),
     visibility: asVisibility(item.visibility),
     invite_user_ids: asStringList(item.invite_user_ids),
+    moderation_status: asModerationStatus(item.moderation_status || item.moderationStatus),
     created_at: String(item.created_at || ''),
   }
 }

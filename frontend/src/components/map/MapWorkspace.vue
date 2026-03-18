@@ -648,6 +648,7 @@ function setCommentDraft(next) {
       :on-delete="deleteSpot"
       :on-toggle-favorite="toggleFavorite"
       :on-share="shareSpot"
+      :on-report="(spot) => props.behavior.reportSpot(String(spot?.id || ''))"
       :on-go-to-spot="goToSpot"
       :on-notify="onNotify"
       :on-load-user-profile="onLoadUserProfile"

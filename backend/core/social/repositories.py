@@ -7,9 +7,12 @@ from models.schemas import (
     FavoriteRef,
     FollowRef,
     FollowRequestRef,
+    ModerationNotificationPublic,
+    ModerationReportCreateRequest,
     MeetupComment,
     MeetupCreateRequest,
     MeetupInviteRef,
+    ModerationUserPublic,
     ShareRequest,
     SpotComment,
     SpotUpsertRequest,
@@ -29,6 +32,9 @@ class SocialRepositories:
         self.blocks = MongoRepository("blocks", BlockRef, db_name=_social_db_name())
         self.shares = MongoRepository("shares", ShareRequest, db_name=_social_db_name())
         self.support_tickets = MongoRepository("support_tickets", SupportTicketRequest, db_name=_social_db_name())
+        self.moderation_reports = MongoRepository("moderation_reports", ModerationReportCreateRequest, db_name=_social_db_name())
+        self.moderation_strikes = MongoRepository("moderation_strikes", ModerationUserPublic, db_name=_social_db_name())
+        self.moderation_notifications = MongoRepository("moderation_notifications", ModerationNotificationPublic, db_name=_social_db_name())
         self.comments = MongoRepository("comments", SpotComment, db_name=_social_db_name())
         self.meetups = MongoRepository("meetups", MeetupCreateRequest, db_name=_social_db_name())
         self.meetup_invites = MongoRepository("meetup_invites", MeetupInviteRef, db_name=_social_db_name())

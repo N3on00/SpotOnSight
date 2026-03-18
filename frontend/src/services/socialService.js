@@ -94,6 +94,35 @@ export class SocialService extends ApiStateService {
     }
   }
 
+  async reportContent(targetType, targetId, reason, details = '') {
+    try {
+      const data = await this.api.request(API_ENDPOINTS.SOCIAL_REPORTS_CREATE, {
+        body: {
+          target_type: asText(targetType),
+          target_id: asText(targetId),
+          reason: asText(reason) || 'other',
+          details: asText(details),
+        },
+      })
+      this.clearError()
+      return data || null
+    } catch (error) {
+      this.captureError(error, 'Could not submit report')
+      return null
+    }
+  }
+
+  async moderationNotifications() {
+    try {
+      const data = await this.api.request(API_ENDPOINTS.SOCIAL_NOTIFICATIONS_LIST)
+      this.clearError()
+      return Array.isArray(data) ? data : []
+    } catch (error) {
+      this.captureError(error, 'Could not load moderation notifications')
+      return []
+    }
+  }
+
   async followUser(userId) {
     try {
       const data = await this.api.request(API_ENDPOINTS.SOCIAL_FOLLOW_USER, {
