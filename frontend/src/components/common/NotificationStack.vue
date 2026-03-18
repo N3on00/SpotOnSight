@@ -1,6 +1,7 @@
 <script setup>
 import { computed, reactive, watch } from 'vue'
 import { useApp } from '../../core/injection'
+import { NOTIFICATION_CATEGORIES } from '../../services/notificationService'
 import ActionButton from './ActionButton.vue'
 
 const app = useApp()
@@ -145,12 +146,14 @@ async function copyDetails(details) {
   try {
     await navigator.clipboard.writeText(details)
     app.service('notify').push({
+      category: NOTIFICATION_CATEGORIES.SYSTEM,
       level: 'success',
       title: 'Copied',
       message: 'Details copied to clipboard.',
     })
   } catch {
     app.service('notify').push({
+      category: NOTIFICATION_CATEGORIES.SYSTEM,
       level: 'warning',
       title: 'Clipboard Error',
       message: 'Could not copy details from browser.',

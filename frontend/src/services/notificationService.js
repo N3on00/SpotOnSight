@@ -1,5 +1,19 @@
 let seq = 1
 
+export const NOTIFICATION_CATEGORIES = Object.freeze({
+  SYSTEM: 'system',
+  SOCIAL: 'social',
+  MAP: 'map',
+  ACCOUNT: 'account',
+})
+
+function normalizeCategory(category) {
+  const value = String(category || '').trim().toLowerCase()
+  return Object.values(NOTIFICATION_CATEGORIES).includes(value)
+    ? value
+    : NOTIFICATION_CATEGORIES.SYSTEM
+}
+
 export class NotificationService {
   constructor(state) {
     this.state = state
@@ -13,11 +27,12 @@ export class NotificationService {
     return 5000
   }
 
-  push({ level = 'info', title, message, details = '', sticky = false, durationMs }) {
+  push({ level = 'info', title, message, details = '', sticky = false, durationMs, category }) {
     const id = seq++
     const entry = {
       id,
       createdAt: new Date().toISOString(),
+      category: normalizeCategory(category),
       level: String(level || 'info'),
       title: String(title || '').trim(),
       message: String(message || '').trim(),

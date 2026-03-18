@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { NotificationService } from '../services/notificationService'
+import { NotificationService, NOTIFICATION_CATEGORIES } from '../services/notificationService'
 
 describe('NotificationService', () => {
   beforeEach(() => {
@@ -77,5 +77,18 @@ describe('NotificationService', () => {
 
     vi.advanceTimersByTime(1)
     expect(state.notifications).toHaveLength(0)
+  })
+
+  it('defaults notifications to the system category and preserves explicit categories', () => {
+    const state = { notifications: [], notificationLog: [] }
+    const service = new NotificationService(state)
+
+    service.push({ title: 'Defaulted' })
+    service.push({ title: 'Social', category: NOTIFICATION_CATEGORIES.SOCIAL })
+
+    expect(state.notifications[0].category).toBe(NOTIFICATION_CATEGORIES.SYSTEM)
+    expect(state.notifications[1].category).toBe(NOTIFICATION_CATEGORIES.SOCIAL)
+    expect(state.notificationLog[0].category).toBe(NOTIFICATION_CATEGORIES.SYSTEM)
+    expect(state.notificationLog[1].category).toBe(NOTIFICATION_CATEGORIES.SOCIAL)
   })
 })
