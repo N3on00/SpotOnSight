@@ -44,7 +44,6 @@ import {
 } from './mapWorkspaceSelection'
 import {
   getCurrentPosition,
-  getDefaultBounds,
   getStoredLocation,
 } from '../../services/geolocationService'
 import { distanceKm, tokenize } from '../../utils/sanitizers'
@@ -76,7 +75,6 @@ const { mapBounds, initializeUserLocation } = useMapGeolocation({
   state: props.state,
   getStoredLocation,
   getCurrentPosition,
-  getDefaultBounds,
 })
 
 const {

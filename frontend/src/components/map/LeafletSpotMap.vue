@@ -36,6 +36,42 @@ let pointer = null
 let isDisposed = false
 const previewIconCache = new Map()
 
+function worldCopiesForLongitude(lon) {
+  if (!map || isDisposed) {
+    return [lon]
+  }
+
+  const bounds = map.getBounds()
+  const west = bounds.getWest()
+  const east = bounds.getEast()
+  const minOffset = Math.floor((west - lon) / 360) - 1
+  const maxOffset = Math.ceil((east - lon) / 360) + 1
+  const copies = []
+
+  for (let offset = minOffset; offset <= maxOffset; offset += 1) {
+    copies.push(lon + (offset * 360))
+  }
+
+  return copies.length ? copies : [lon]
+}
+
+function nearestWrappedLatLng(lat, lon) {
+  const copies = worldCopiesForLongitude(lon)
+  const centerLng = map && !isDisposed ? map.getCenter().lng : lon
+  let bestLon = copies[0]
+  let bestDistance = Math.abs(bestLon - centerLng)
+
+  for (const candidate of copies) {
+    const distance = Math.abs(candidate - centerLng)
+    if (distance < bestDistance) {
+      bestLon = candidate
+      bestDistance = distance
+    }
+  }
+
+  return L.latLng(lat, bestLon)
+}
+
 function escapeHtmlAttr(value) {
   return String(value || '')
     .replace(/&/g, '&amp;')
@@ -139,7 +175,7 @@ function updateEdgeHints() {
     const lon = Number(spot.lon)
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue
 
-    const latLng = L.latLng(lat, lon)
+    const latLng = nearestWrappedLatLng(lat, lon)
     const point = map.latLngToContainerPoint(latLng)
     const inViewport = point.x >= minX
       && point.x <= safeMaxX
@@ -188,12 +224,15 @@ function syncMarkers() {
 
     const preview = firstImageSource(spot.images)
     const icon = preview ? previewMarkerIcon(preview) : null
-    const marker = icon
-      ? L.marker([lat, lon], { icon })
-      : L.marker([lat, lon])
 
-    marker.on('click', () => props.onMarkerSelect(spot))
-    marker.addTo(markersLayer)
+    for (const wrappedLon of worldCopiesForLongitude(lon)) {
+      const marker = icon
+        ? L.marker([lat, wrappedLon], { icon })
+        : L.marker([lat, wrappedLon])
+
+      marker.on('click', () => props.onMarkerSelect(spot))
+      marker.addTo(markersLayer)
+    }
   }
 
   updateEdgeHints()
@@ -280,7 +319,7 @@ onMounted(() => {
     if (!map || isDisposed) return
     const c = map.getCenter()
     props.onViewportChange([c.lat, c.lng], map.getZoom())
-    updateEdgeHints()
+    syncMarkers()
   })
 
   map.on('resize', () => {
