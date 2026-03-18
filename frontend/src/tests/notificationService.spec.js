@@ -65,4 +65,17 @@ describe('NotificationService', () => {
     vi.advanceTimersByTime(1)
     expect(state.notifications).toHaveLength(0)
   })
+
+  it('auto-dismisses error notifications after the standard few-second timeout', () => {
+    const state = { notifications: [], notificationLog: [] }
+    const service = new NotificationService(state)
+
+    service.push({ level: 'error', title: 'Failed', message: 'Save failed.' })
+
+    vi.advanceTimersByTime(4999)
+    expect(state.notifications).toHaveLength(1)
+
+    vi.advanceTimersByTime(1)
+    expect(state.notifications).toHaveLength(0)
+  })
 })

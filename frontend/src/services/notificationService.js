@@ -8,7 +8,7 @@ export class NotificationService {
   }
 
   _defaultDuration(level) {
-    if (level === 'error') return 9000
+    if (level === 'error') return 5000
     if (level === 'warning') return 7500
     return 5000
   }
