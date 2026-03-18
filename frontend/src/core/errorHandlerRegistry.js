@@ -1,4 +1,5 @@
 import { asText } from '../utils/sanitizers'
+import { NOTIFICATION_CATEGORIES } from '../services/notificationService'
 
 const HANDLER_REGISTRY = new Map()
 const INSTANCE_CACHE = new WeakMap()
@@ -41,6 +42,7 @@ export class ScreenErrorHandler {
     }
 
     this.app.service('notify').push({
+      category: NOTIFICATION_CATEGORIES.SYSTEM,
       level: this.resolveLevel(input),
       title: this.resolveTitle(input),
       message: this.resolveMessage(input),

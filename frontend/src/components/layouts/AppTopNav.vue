@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useApp } from '../../core/injection'
 import { toImageSource } from '../../models/imageMapper'
+import { NOTIFICATION_CATEGORIES } from '../../services/notificationService'
 import {
   ROUTE_NAMES,
   routeToAdmin,
@@ -27,6 +28,15 @@ const router = useRouter()
 const notificationsOpen = ref(false)
 const userMenuOpen = ref(false)
 const expandedLogEntries = ref({})
+const activeLogCategory = ref('all')
+
+const NOTIFICATION_CATEGORY_LABELS = {
+  all: 'All',
+  [NOTIFICATION_CATEGORIES.SYSTEM]: 'System',
+  [NOTIFICATION_CATEGORIES.SOCIAL]: 'Social',
+  [NOTIFICATION_CATEGORIES.MAP]: 'Map',
+  [NOTIFICATION_CATEGORIES.ACCOUNT]: 'Account',
+}
 
 const navEntries = computed(() => {
   const items = [
@@ -45,6 +55,38 @@ const me = computed(() => app.state.session.user || null)
 const logEntries = computed(() => {
   const source = Array.isArray(app.state.notificationLog) ? app.state.notificationLog : []
   return [...source].reverse()
+})
+
+const logCategoryOptions = computed(() => {
+  const counts = {
+    [NOTIFICATION_CATEGORIES.SYSTEM]: 0,
+    [NOTIFICATION_CATEGORIES.SOCIAL]: 0,
+    [NOTIFICATION_CATEGORIES.MAP]: 0,
+    [NOTIFICATION_CATEGORIES.ACCOUNT]: 0,
+  }
+
+  for (const entry of logEntries.value) {
+    const key = String(entry?.category || NOTIFICATION_CATEGORIES.SYSTEM)
+    if (Object.prototype.hasOwnProperty.call(counts, key)) {
+      counts[key] += 1
+    }
+  }
+
+  return [
+    { key: 'all', label: NOTIFICATION_CATEGORY_LABELS.all, count: logEntries.value.length },
+    ...Object.values(NOTIFICATION_CATEGORIES).map((key) => ({
+      key,
+      label: NOTIFICATION_CATEGORY_LABELS[key],
+      count: counts[key],
+    })),
+  ]
+})
+
+const filteredLogEntries = computed(() => {
+  if (activeLogCategory.value === 'all') {
+    return logEntries.value
+  }
+  return logEntries.value.filter((entry) => String(entry?.category || NOTIFICATION_CATEGORIES.SYSTEM) === activeLogCategory.value)
 })
 
 const logCount = computed(() => logEntries.value.length)
@@ -144,6 +186,7 @@ function logout() {
   closePanels()
   app.controller('auth').logout()
   app.service('notify').push({
+    category: NOTIFICATION_CATEGORIES.ACCOUNT,
     level: 'info',
     title: 'Logged out',
     message: 'Session ended.',
@@ -185,6 +228,11 @@ function openSupport() {
 function clearNotificationLog() {
   app.service('notify').clearLog()
   expandedLogEntries.value = {}
+  activeLogCategory.value = 'all'
+}
+
+function setLogCategory(categoryKey) {
+  activeLogCategory.value = categoryKey
 }
 
 function notificationEntryKey(entry) {
@@ -231,6 +279,11 @@ function notificationTimestamp(entry) {
   if (Number.isNaN(date.getTime())) return ''
 
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+function notificationCategory(entry) {
+  const key = String(entry?.category || NOTIFICATION_CATEGORIES.SYSTEM)
+  return NOTIFICATION_CATEGORY_LABELS[key] || NOTIFICATION_CATEGORY_LABELS.system
 }
 </script>
 
@@ -282,13 +335,17 @@ function notificationTimestamp(entry) {
       <div class="app-top-nav__panel" ref="panelRoot" v-if="notificationsOpen || userMenuOpen">
         <TopNavNotificationsPanel
           v-if="notificationsOpen"
-          :entries="logEntries"
+          :entries="filteredLogEntries"
+          :category-options="logCategoryOptions"
+          :active-category="activeLogCategory"
+          :category-for="notificationCategory"
           :is-expanded="isNotificationExpanded"
           :has-details="hasNotificationDetails"
           :message-for="notificationMessage"
           :details-for="notificationDetails"
           :timestamp-for="notificationTimestamp"
           :on-toggle-expanded="toggleNotificationExpanded"
+          :on-select-category="setLogCategory"
           :on-clear="clearNotificationLog"
         />
 
