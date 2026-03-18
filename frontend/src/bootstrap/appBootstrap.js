@@ -16,6 +16,7 @@ import { PlatformService } from '../services/platformService'
 import { CommentsService } from '../services/commentsService'
 import { DashboardService } from '../services/dashboardService'
 import { MeetupsService } from '../services/meetupsService'
+import { AdminService } from '../services/adminService'
 import { ApiController } from '../controllers/apiController'
 import { AuthController } from '../controllers/authController'
 import { SpotsController } from '../controllers/spotsController'
@@ -24,6 +25,7 @@ import { UsersController } from '../controllers/usersController'
 import { SupportController } from '../controllers/supportController'
 import { CommentsController } from '../controllers/commentsController'
 import { MeetupsController } from '../controllers/meetupsController'
+import { AdminController } from '../controllers/adminController'
 import { registerUi } from './uiRegistrations'
 import { registerComponentDecorators } from './componentDecoratorRegistrations'
 import { registerErrorHandlers } from './errorHandlerRegistrations'
@@ -53,6 +55,7 @@ export function buildAppContext() {
     platform: (ctx) => new PlatformService(ctx.state),
     comments: (ctx) => new CommentsService(ctx.service('apiGateway'), ctx.state),
     meetups: (ctx) => new MeetupsService(ctx.service('apiGateway'), ctx.state),
+    adminService: (ctx) => new AdminService(ctx.service('apiGateway'), ctx.state),
     dashboard: (ctx) => new DashboardService(ctx),
   }
 
@@ -65,6 +68,7 @@ export function buildAppContext() {
     support: (ctx) => new SupportController(ctx),
     comments: (ctx) => new CommentsController(ctx),
     meetups: (ctx) => new MeetupsController(ctx),
+    admin: (ctx) => new AdminController(ctx),
   }
 
   const ctx = new AppContext({ state, serviceFactories, controllerFactories })

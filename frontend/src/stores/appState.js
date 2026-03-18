@@ -100,6 +100,8 @@ export function createAppState() {
     loading: {
       authLogin: false,
       authRegister: false,
+      adminLoad: false,
+      adminAction: false,
       homeRefresh: false,
       socialReload: false,
       socialFollow: false,
@@ -128,6 +130,11 @@ export function createAppState() {
       blockedUsers: [],
       meetups: [],
       meetupInvites: [],
+      moderationNotifications: [],
+    },
+    admin: {
+      reports: [],
+      users: [],
     },
     map: {
       center: [47.3769, 8.5417],

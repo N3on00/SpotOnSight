@@ -11,6 +11,7 @@ vi.mock('../components/map/MapWorkspace.vue', () => ({
 import { MapWorkspaceBehavior } from '../components/map/MapWorkspaceBehavior'
 import { UI_ACTIONS, UI_COMPONENT_IDS, UI_SCREENS, UI_SLOTS } from '../core/uiElements'
 import {
+  AdminPageHarness,
   AuthPageHarness,
   HomePageHarness,
   MapPageHarness,
@@ -99,6 +100,24 @@ describe('Auth page harness', () => {
     expect(page.controllers.spots.reload).toHaveBeenCalled()
     expect(page.controllers.social.reloadFavorites).toHaveBeenCalled()
     expect(page.router.push).toHaveBeenCalledWith({ name: UI_SCREENS.HOME })
+  })
+})
+
+describe('Admin page harness', () => {
+  it('loads moderation actions and executes callbacks', async () => {
+    const page = new AdminPageHarness()
+
+    await page.runAction(UI_ACTIONS.ADMIN_REFRESH)
+    expect(page.controllers.admin.loadReports).toHaveBeenCalledWith('open', 100)
+    expect(page.controllers.admin.loadUsers).toHaveBeenCalledWith('', 100)
+    expect(page.controllers.spots.reload).toHaveBeenCalled()
+
+    const panelProps = page.buildComponentProps(UI_COMPONENT_IDS.ADMIN_PANEL)
+    await panelProps.onReviewReport('report-1', { status: 'dismissed', action: 'none', severity: 'low', admin_notes: '' })
+    await panelProps.onUpdateUser('user-7', { account_status: 'active', reason: 'Cleared', posting_timeout_until: null })
+
+    expect(page.controllers.admin.reviewReport).toHaveBeenCalledWith('report-1', expect.objectContaining({ status: 'dismissed' }))
+    expect(page.controllers.admin.updateUserStatus).toHaveBeenCalledWith('user-7', expect.objectContaining({ account_status: 'active' }))
   })
 })
 
@@ -194,12 +213,14 @@ describe('Profile page harness', () => {
     const summaryProps = page.buildComponentProps(UI_COMPONENT_IDS.PROFILE_SUMMARY)
     await summaryProps.onFollowProfile()
     await summaryProps.onUnfollowProfile()
+    await summaryProps.onReportProfile({ id: 'user-2' })
     summaryProps.onGoToSpot({ id: 'spot-2', lat: 47.38, lon: 8.54 })
     await summaryProps.onToggleFavorite('spot-2', false)
     summaryProps.onOpenProfile('user-3')
 
     expect(page.controllers.social.follow).toHaveBeenCalledWith('user-2')
     expect(page.controllers.social.unfollow).toHaveBeenCalledWith('user-2')
+    expect(page.controllers.social.reportContent).toHaveBeenCalledWith('user', 'user-2', 'other', expect.any(String))
     expect(page.controllers.social.toggleFavorite).toHaveBeenCalledWith('spot-2', false)
     expect(page.router.push).toHaveBeenCalledWith({
       name: UI_SCREENS.MAP,

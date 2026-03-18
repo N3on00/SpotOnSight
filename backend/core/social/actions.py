@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 import re
 from typing import Any, Callable
 
@@ -16,6 +16,12 @@ from models.schemas import (
     FavoriteRef,
     FollowRef,
     FollowRequestRef,
+    ModerationNotificationPublic,
+    ModerationReportCreateRequest,
+    ModerationReportPublic,
+    ModerationReportReviewRequest,
+    ModerationUserPublic,
+    ModerationUserStatusRequest,
     MeetupComment,
     MeetupCommentCreateRequest,
     MeetupCommentUpdateRequest,
@@ -50,6 +56,7 @@ from .ids import (
 )
 from .indexes import ensure_indexes
 from .mappers import to_meetup_public, to_spot_public, to_support_ticket_public, to_user_public
+from .mappers import to_moderation_notification_public, to_moderation_report_public, to_moderation_user_public
 from .policies import can_view_private_user, can_view_spot, is_blocked_pair, is_following
 
 
@@ -64,6 +71,141 @@ class SocialActions:
     def __init__(self, repos) -> None:
         self.repos = repos
 
+    @staticmethod
+    def _now() -> datetime:
+        return datetime.now(UTC)
+
+    @staticmethod
+    def _content_status(doc: dict[str, Any]) -> str:
+        text = as_text(doc.get("moderation_status") or "visible").lower()
+        if text in {"visible", "flagged", "hidden"}:
+            return text
+        return "visible"
+
+    def is_admin(self, current_user: dict[str, Any]) -> bool:
+        return is_admin_user(current_user)
+
+    def _can_view_content_doc(self, doc: dict[str, Any], current_user: dict[str, Any]) -> bool:
+        if self.is_admin(current_user):
+            return True
+        return self._content_status(doc) != "hidden"
+
+    def _posting_timeout_until(self, user_doc: dict[str, Any]) -> datetime | None:
+        value = user_doc.get("posting_timeout_until")
+        return value if isinstance(value, datetime) else None
+
+    def ensure_can_post(self, current_user: dict[str, Any]) -> None:
+        if self.is_admin(current_user):
+            return
+        timeout_until = self._posting_timeout_until(current_user)
+        now = self._now()
+        if timeout_until and timeout_until > now:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Posting is temporarily restricted until {timeout_until.isoformat()}",
+            )
+
+    def _target_content(self, target_type: str, target_id: str) -> tuple[dict[str, Any], str]:
+        normalized = as_text(target_type).lower()
+        if normalized == "spot":
+            target = self.spot_or_404(target_id)
+            return target, spot_owner_id(target)
+        if normalized == "comment":
+            target = self.comment_or_404(target_id)
+            return target, as_text(target.get("user_id"))
+        if normalized == "meetup_comment":
+            if not ObjectId.is_valid(target_id):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid comment ID")
+            target = self.repos.meetup_comments.find_one({"_id": ObjectId(target_id)})
+            if not target:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
+            return target, as_text(target.get("user_id"))
+        if normalized == "user":
+            user_id, target = self.user_or_404(target_id)
+            return target, user_id
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported moderation target")
+
+    def _notify_user(self, user_id: str, *, title: str, message: str, details: str = "") -> None:
+        uid = as_text(user_id)
+        if not uid:
+            return
+        self.repos.moderation_notifications.insert_one(
+            {
+                "user_id": uid,
+                "title": as_text(title),
+                "message": as_text(message),
+                "details": as_text(details),
+                "created_at": self._now(),
+            }
+        )
+
+    @staticmethod
+    def _severity_weight(severity: str) -> int:
+        normalized = as_text(severity).lower()
+        if normalized == "high":
+            return 3
+        if normalized == "medium":
+            return 2
+        return 1
+
+    def _recent_strike_metrics(self, user_id: str) -> tuple[int, int]:
+        now = self._now()
+        rows = self.repos.moderation_strikes.find_many({"user_id": user_id, "created_at": {"$gte": now - timedelta(days=30)}})
+        total_weight = 0
+        count = 0
+        for row in rows:
+            total_weight += max(0, int(row.get("weight") or 0))
+            count += 1
+        return total_weight, count
+
+    def _recalculate_posting_timeout(self, user_id: str) -> tuple[datetime | None, str]:
+        now = self._now()
+        user_doc = self.repos.users.find_one({"_id": ObjectId(user_id)}) or {}
+        if as_text(user_doc.get("account_status")).lower() == "banned":
+            return None, as_text(user_doc.get("account_status_reason"))
+        windows = [
+            (7, 3, timedelta(hours=24), "Posting is paused for 24 hours after repeated recent strikes."),
+            (14, 5, timedelta(days=7), "Posting is paused for 7 days due to repeated violations."),
+            (30, 7, timedelta(days=30), "Posting is paused for 30 days and your account now requires manual review."),
+        ]
+        timeout_until: datetime | None = None
+        message = ""
+        for days, threshold, duration, detail in windows:
+            rows = self.repos.moderation_strikes.find_many({"user_id": user_id, "created_at": {"$gte": now - timedelta(days=days)}})
+            total_weight = sum(max(0, int(row.get("weight") or 0)) for row in rows)
+            if total_weight >= threshold:
+                candidate = now + duration
+                if timeout_until is None or candidate > timeout_until:
+                    timeout_until = candidate
+                    message = detail
+        self.repos.users.update_fields(
+            {"_id": ObjectId(user_id)},
+            {
+                "posting_timeout_until": timeout_until,
+                "account_status": "watch" if timeout_until else "active",
+                "account_status_reason": message if timeout_until else as_text(""),
+            },
+        )
+        return timeout_until, message
+
+    def _apply_strike(self, *, user_id: str, target_type: str, target_id: str, report_id: str, reason: str, severity: str, reviewed_by: str) -> tuple[int, datetime | None, str]:
+        weight = self._severity_weight(severity)
+        self.repos.moderation_strikes.insert_one(
+            {
+                "user_id": user_id,
+                "target_type": as_text(target_type),
+                "target_id": as_text(target_id),
+                "report_id": as_text(report_id),
+                "reason": as_text(reason),
+                "severity": as_text(severity),
+                "weight": weight,
+                "reviewed_by": as_text(reviewed_by),
+                "created_at": self._now(),
+            }
+        )
+        timeout_until, timeout_message = self._recalculate_posting_timeout(user_id)
+        return weight, timeout_until, timeout_message
+
     def me_id(self, current_user: dict[str, Any]) -> str:
         return viewer_user_id(current_user)
 
@@ -76,6 +218,8 @@ class SocialActions:
 
     def require_private_profile_access(self, target_user: dict[str, Any], current_user: dict[str, Any]) -> str:
         me_id = self.me_id(current_user)
+        if self.is_admin(current_user):
+            return me_id
         if not can_view_private_user(self.repos, target_user, me_id):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User profile is private")
         return me_id
@@ -88,6 +232,10 @@ class SocialActions:
 
     def require_spot_visible(self, spot: dict[str, Any], current_user: dict[str, Any], detail: str) -> str:
         me_id = self.me_id(current_user)
+        if self.is_admin(current_user):
+            return me_id
+        if self._content_status(spot) == "hidden":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
         if not can_view_spot(self.repos, me_id, spot):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
         return me_id
@@ -109,6 +257,10 @@ class SocialActions:
         return row
 
     def can_access_meetup(self, meetup: dict[str, Any], user_id: str) -> bool:
+        if user_id and ObjectId.is_valid(user_id):
+            current_user = self.repos.users.find_one({"_id": ObjectId(user_id)})
+            if current_user and self.is_admin(current_user):
+                return True
         host_id = as_text(meetup.get("host_user_id"))
         if host_id and host_id == user_id:
             return True
@@ -216,18 +368,22 @@ class SocialActions:
     def get_user_profile(self, user_id: str, current_user: dict[str, Any]) -> UserPublic:
         target_id, target = self.user_or_404(user_id)
         me_id = viewer_user_id(current_user)
-        if me_id != target_id and is_blocked_pair(self.repos, me_id, target_id):
+        if not self.is_admin(current_user) and me_id != target_id and is_blocked_pair(self.repos, me_id, target_id):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
         return to_user_public(target)
 
     def list_visible_spots(self, current_user: dict[str, Any]) -> list[SpotPublic]:
         me_id = self.me_id(current_user)
         docs = list(self.repos.spots.collection.find({}).sort("created_at", -1).limit(1500))
-        return [to_spot_public(doc) for doc in docs if can_view_spot(self.repos, me_id, doc)]
+        if self.is_admin(current_user):
+            return [to_spot_public(doc) for doc in docs]
+        return [to_spot_public(doc) for doc in docs if self._content_status(doc) != "hidden" and can_view_spot(self.repos, me_id, doc)]
 
     def create_spot(self, req: SpotUpsertRequest, current_user: dict[str, Any]) -> SpotPublic:
+        self.ensure_can_post(current_user)
         me_id = self.me_id(current_user)
         doc = build_spot_doc(req, owner_id=me_id)
+        doc["moderation_status"] = "visible"
         inserted_id = self.repos.spots.insert_one(doc)
         created = self.repos.spots.find_one({"_id": ObjectId(inserted_id)})
         if not created:
@@ -235,6 +391,7 @@ class SocialActions:
         return to_spot_public(created)
 
     def update_spot(self, spot_id: str, req: SpotUpsertRequest, current_user: dict[str, Any]) -> SpotPublic:
+        self.ensure_can_post(current_user)
         existing = self.spot_or_404(spot_id)
         me_id = self.me_id(current_user)
         owner_id = spot_owner_id(existing)
@@ -242,6 +399,7 @@ class SocialActions:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only owner can edit this spot")
         spot_key = existing.get("_id")
         next_doc = build_spot_doc(req, owner_id=owner_id or me_id, created_at=existing.get("created_at"))
+        next_doc["moderation_status"] = self._content_status(existing)
         self.repos.spots.update_fields({"_id": spot_key}, next_doc)
         updated = self.repos.spots.find_one({"_id": spot_key})
         if not updated:
@@ -265,10 +423,12 @@ class SocialActions:
     def user_spots(self, user_id: str, current_user: dict[str, Any]) -> list[SpotPublic]:
         target_id, _target = self.user_or_404(user_id)
         me_id = self.me_id(current_user)
-        if me_id != target_id and is_blocked_pair(self.repos, me_id, target_id):
+        if not self.is_admin(current_user) and me_id != target_id and is_blocked_pair(self.repos, me_id, target_id):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
         docs = list(self.repos.spots.collection.find({"owner_id": target_id}).sort("created_at", -1).limit(1200))
-        return [to_spot_public(doc) for doc in docs if can_view_spot(self.repos, me_id, doc)]
+        if self.is_admin(current_user):
+            return [to_spot_public(doc) for doc in docs]
+        return [to_spot_public(doc) for doc in docs if self._content_status(doc) != "hidden" and can_view_spot(self.repos, me_id, doc)]
 
     def add_favorite(self, spot_id: str, current_user: dict[str, Any]) -> dict[str, bool]:
         spot = self.spot_or_404(spot_id)
@@ -423,10 +583,182 @@ class SocialActions:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found")
         return {"ok": True, "deleted": True}
 
-    @staticmethod
-    def to_spot_comment(row: dict[str, Any] | None) -> SpotComment:
+    def create_moderation_report(self, req: ModerationReportCreateRequest, current_user: dict[str, Any]) -> ModerationReportPublic:
+        ensure_indexes()
+        reporter_id = self.me_id(current_user)
+        target, target_owner_id = self._target_content(req.target_type, req.target_id)
+        normalized_target_type = as_text(req.target_type).lower()
+        if normalized_target_type == "user" and target_owner_id == reporter_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot report yourself")
+        if normalized_target_type != "user" and target_owner_id == reporter_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot report your own content")
+        now = self._now()
+        doc = {
+            "reporter_user_id": reporter_id,
+            "target_type": normalized_target_type,
+            "target_id": as_text(req.target_id),
+            "target_owner_user_id": target_owner_id,
+            "reason": as_text(req.reason),
+            "details": as_text(req.details),
+            "status": "open",
+            "severity": "",
+            "action_taken": "",
+            "admin_notes": "",
+            "created_at": now,
+            "reviewed_at": None,
+            "reviewed_by": "",
+        }
+        inserted_id = self.repos.moderation_reports.insert_one(doc)
+        row = self.repos.moderation_reports.find_one({"_id": ObjectId(inserted_id)})
+        if not row:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Moderation report creation failed")
+        return to_moderation_report_public(row)
+
+    def list_moderation_notifications(self, current_user: dict[str, Any]) -> list[ModerationNotificationPublic]:
+        me_id = self.me_id(current_user)
+        rows = list(self.repos.moderation_notifications.collection.find({"user_id": me_id}).sort("created_at", -1).limit(50))
+        return [to_moderation_notification_public(row) for row in rows]
+
+    def list_moderation_reports(self, report_status: str, limit: int) -> list[ModerationReportPublic]:
+        normalized = as_text(report_status).lower()
+        query: dict[str, Any] = {}
+        if normalized and normalized != "all":
+            query["status"] = normalized
+        rows = list(self.repos.moderation_reports.collection.find(query).sort("created_at", -1).limit(limit))
+        return [to_moderation_report_public(row) for row in rows]
+
+    def _set_target_content_status(self, target_type: str, target_id: str, moderation_status: str) -> None:
+        normalized = as_text(target_type).lower()
+        if normalized == "spot":
+            target = self.spot_or_404(target_id)
+            self.repos.spots.update_fields({"_id": target.get("_id")}, {"moderation_status": moderation_status})
+            return
+        if normalized == "comment":
+            self.comment_or_404(target_id)
+            self.repos.comments.update_fields({"_id": ObjectId(target_id)}, {"moderation_status": moderation_status, "updated_at": self._now()})
+            return
+        if normalized == "meetup_comment":
+            if not ObjectId.is_valid(target_id):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid comment ID")
+            existing = self.repos.meetup_comments.find_one({"_id": ObjectId(target_id)})
+            if not existing:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
+            self.repos.meetup_comments.update_fields({"_id": ObjectId(target_id)}, {"moderation_status": moderation_status, "updated_at": self._now()})
+
+    def review_moderation_report(self, report_id: str, req: ModerationReportReviewRequest, admin_user: dict[str, Any]) -> ModerationReportPublic:
+        ensure_indexes()
+        if not ObjectId.is_valid(report_id):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid report ID")
+        row = self.repos.moderation_reports.find_one({"_id": ObjectId(report_id)})
+        if not row:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
+        if as_text(row.get("status")).lower() != "open":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Report already reviewed")
+
+        action_taken = as_text(req.action).lower()
+        severity = as_text(req.severity).lower()
+        target_type = as_text(row.get("target_type")).lower()
+        target_id = as_text(row.get("target_id"))
+        target_owner_user_id = as_text(row.get("target_owner_user_id"))
+        reviewed_by = self.me_id(admin_user)
+        admin_notes = as_text(req.admin_notes)
+        timeout_until: datetime | None = None
+        timeout_message = ""
+
+        if req.status == "upheld":
+            if action_taken == "hide_content" and target_type in {"spot", "comment", "meetup_comment"}:
+                self._set_target_content_status(target_type, target_id, "hidden")
+            if action_taken == "ban_user":
+                if not ObjectId.is_valid(target_owner_user_id):
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Target owner could not be resolved")
+                self.repos.users.update_fields(
+                    {"_id": ObjectId(target_owner_user_id)},
+                    {
+                        "account_status": "banned",
+                        "account_status_reason": admin_notes or f"Account banned after upheld moderation report: {as_text(row.get('reason'))}",
+                        "posting_timeout_until": None,
+                    },
+                )
+            if target_type in {"spot", "comment", "meetup_comment"} and ObjectId.is_valid(target_owner_user_id):
+                _weight, timeout_until, timeout_message = self._apply_strike(
+                    user_id=target_owner_user_id,
+                    target_type=target_type,
+                    target_id=target_id,
+                    report_id=report_id,
+                    reason=as_text(row.get("reason")),
+                    severity=severity,
+                    reviewed_by=reviewed_by,
+                )
+                details_parts = [
+                    f"Reason: {as_text(row.get('reason')).replace('_', ' ')}.",
+                    f"Severity: {severity}.",
+                    "Continued violations can lead to posting restrictions or account bans.",
+                ]
+                if timeout_until and timeout_message:
+                    details_parts.append(timeout_message)
+                self._notify_user(
+                    target_owner_user_id,
+                    title="Content flagged",
+                    message="One of your posts was flagged and a strike has been applied to your account.",
+                    details=" ".join(details_parts),
+                )
+
+        updates = {
+            "status": req.status,
+            "severity": severity,
+            "action_taken": action_taken,
+            "admin_notes": admin_notes,
+            "reviewed_at": self._now(),
+            "reviewed_by": reviewed_by,
+        }
+        self.repos.moderation_reports.update_fields({"_id": ObjectId(report_id)}, updates)
+        updated = self.repos.moderation_reports.find_one({"_id": ObjectId(report_id)})
+        if not updated:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Moderation report update failed")
+        return to_moderation_report_public(updated)
+
+    def list_moderated_users(self, query: str, limit: int) -> list[ModerationUserPublic]:
+        regex = re.compile(re.escape(as_text(query)), re.IGNORECASE) if as_text(query) else None
+        mongo_query: dict[str, Any] = {}
+        if regex is not None:
+            mongo_query = {"$or": [{"username": regex}, {"display_name": regex}, {"email": regex}]}
+        rows = list(self.repos.users.collection.find(mongo_query, safe_user_projection()).sort("created_at", -1).limit(limit))
+        out: list[ModerationUserPublic] = []
+        for row in rows:
+            user_id = serialize_id(row.get("_id"))
+            if not ObjectId.is_valid(user_id):
+                continue
+            active_weight, recent_count = self._recent_strike_metrics(user_id)
+            out.append(to_moderation_user_public(row, active_strike_weight=active_weight, recent_strike_count=recent_count))
+        return out
+
+    def update_user_moderation_status(self, user_id: str, req: ModerationUserStatusRequest, admin_user: dict[str, Any]) -> ModerationUserPublic:
+        target_id, _target = self.user_or_404(user_id)
+        if target_id == self.me_id(admin_user) and req.account_status == "banned":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Admin cannot ban their own account")
+        updates = {
+            "account_status": req.account_status,
+            "account_status_reason": as_text(req.reason),
+            "posting_timeout_until": req.posting_timeout_until,
+        }
+        self.repos.users.update_fields({"_id": ObjectId(target_id)}, updates)
+        updated = self.repos.users.find_one({"_id": ObjectId(target_id)}, safe_user_projection())
+        if not updated:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="User moderation update failed")
+        title = "Account update"
+        message = "Your account moderation status has been updated by an administrator."
+        details = as_text(req.reason)
+        if req.account_status == "banned":
+            message = "Your account has been banned."
+        elif req.posting_timeout_until:
+            message = f"Your posting access is restricted until {req.posting_timeout_until.isoformat()}."
+        self._notify_user(target_id, title=title, message=message, details=details)
+        active_weight, recent_count = self._recent_strike_metrics(target_id)
+        return to_moderation_user_public(updated, active_strike_weight=active_weight, recent_strike_count=recent_count)
+
+    def to_spot_comment(self, row: dict[str, Any] | None) -> SpotComment:
         data = row or {}
-        return SpotComment(id=serialize_id(data.get("_id")), spot_id=as_text(data.get("spot_id")), user_id=as_text(data.get("user_id")), message=as_text(data.get("message")), created_at=data.get("created_at"), updated_at=data.get("updated_at"))
+        return SpotComment(id=serialize_id(data.get("_id")), spot_id=as_text(data.get("spot_id")), user_id=as_text(data.get("user_id")), message=as_text(data.get("message")), moderation_status=self._content_status(data), created_at=data.get("created_at"), updated_at=data.get("updated_at"))
 
     def list_comments(self, spot_id: str, current_user: dict[str, Any]) -> list[SpotComment]:
         spot = self.spot_or_404(spot_id)
@@ -434,12 +766,13 @@ class SocialActions:
         canonical_spot_id = serialize_id(spot.get("_id"))
         rows = self.repos.comments.find_many({"spot_id": canonical_spot_id})
         rows.sort(key=lambda row: row.get("created_at") or datetime.min.replace(tzinfo=UTC), reverse=True)
-        return [self.to_spot_comment(row) for row in rows]
+        return [self.to_spot_comment(row) for row in rows if self._can_view_content_doc(row, current_user)]
 
     def create_comment(self, spot_id: str, req: CommentCreateRequest, current_user: dict[str, Any]) -> SpotComment:
+        self.ensure_can_post(current_user)
         spot = self.spot_or_404(spot_id)
         me_id = self.require_spot_visible(spot, current_user, "Not authorized to comment on this spot")
-        doc = {"spot_id": serialize_id(spot.get("_id")), "user_id": me_id, "message": as_text(req.message), "created_at": datetime.now(UTC)}
+        doc = {"spot_id": serialize_id(spot.get("_id")), "user_id": me_id, "message": as_text(req.message), "moderation_status": "visible", "created_at": datetime.now(UTC)}
         inserted_id = self.repos.comments.insert_one(doc)
         row = self.repos.comments.find_one({"_id": ObjectId(inserted_id)})
         if not row:
@@ -447,6 +780,7 @@ class SocialActions:
         return self.to_spot_comment(row)
 
     def update_comment(self, comment_id: str, req: CommentUpdateRequest, current_user: dict[str, Any]) -> SpotComment:
+        self.ensure_can_post(current_user)
         existing = self.comment_or_404(comment_id)
         me_id = self.me_id(current_user)
         if existing.get("user_id") != me_id:
@@ -471,6 +805,7 @@ class SocialActions:
             self.repos.meetup_invites.collection.update_one({"meetup_id": meetup_id, "user_id": invitee_id}, {"$setOnInsert": {"status": "pending", "response_comment": "", "created_at": datetime.now(UTC)}}, upsert=True)
 
     def create_meetup(self, req: MeetupCreateRequest, current_user: dict[str, Any]) -> MeetupPublic:
+        self.ensure_can_post(current_user)
         me_id = self.me_id(current_user)
         invite_user_ids = [uid for uid in dict.fromkeys(req.invite_user_ids) if ObjectId.is_valid(uid)]
         now = datetime.now(UTC)
@@ -514,6 +849,7 @@ class SocialActions:
         return [to_meetup_public(row) for row in all_rows]
 
     def update_meetup(self, meetup_id: str, req: MeetupUpdateRequest, current_user: dict[str, Any]) -> MeetupPublic:
+        self.ensure_can_post(current_user)
         me_id = self.me_id(current_user)
         existing = self.meetup_or_404(meetup_id)
         if as_text(existing.get("host_user_id")) != me_id:
@@ -570,20 +906,22 @@ class SocialActions:
         canonical_meetup_id = serialize_id(meetup.get("_id"))
         rows = self.repos.meetup_comments.find_many({"meetup_id": canonical_meetup_id})
         rows.sort(key=lambda row: row.get("created_at") or datetime.min.replace(tzinfo=UTC), reverse=True)
-        return [MeetupComment(**row) for row in rows]
+        return [MeetupComment(**row) for row in rows if self._can_view_content_doc(row, current_user)]
 
     def create_meetup_comment(self, meetup_id: str, req: MeetupCommentCreateRequest, current_user: dict[str, Any]) -> MeetupComment:
+        self.ensure_can_post(current_user)
         me_id = self.me_id(current_user)
         meetup = self.meetup_or_404(meetup_id)
         if not self.can_access_meetup(meetup, me_id):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to comment on this meetup")
         now = datetime.now(UTC)
-        doc = {"meetup_id": serialize_id(meetup.get("_id")), "user_id": me_id, "message": as_text(req.message), "created_at": now, "updated_at": now}
+        doc = {"meetup_id": serialize_id(meetup.get("_id")), "user_id": me_id, "message": as_text(req.message), "moderation_status": "visible", "created_at": now, "updated_at": now}
         inserted_id = self.repos.meetup_comments.insert_one(doc)
         row = self.repos.meetup_comments.find_one({"_id": ObjectId(inserted_id)})
         return MeetupComment(**row)
 
     def update_meetup_comment(self, comment_id: str, req: MeetupCommentUpdateRequest, current_user: dict[str, Any]) -> MeetupComment:
+        self.ensure_can_post(current_user)
         if not ObjectId.is_valid(comment_id):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid comment ID")
         me_id = self.me_id(current_user)

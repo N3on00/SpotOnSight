@@ -2,6 +2,7 @@ import { UI_SCREENS } from '../core/uiElements'
 import { asText } from '../utils/sanitizers'
 
 export const ROUTE_NAMES = Object.freeze({
+  ADMIN: UI_SCREENS.ADMIN,
   AUTH: UI_SCREENS.AUTH,
   HOME: UI_SCREENS.HOME,
   MAP: UI_SCREENS.MAP,
@@ -13,6 +14,7 @@ export const ROUTE_NAMES = Object.freeze({
 
 export const ROUTE_PATHS = Object.freeze({
   ROOT: '/',
+  ADMIN: '/admin',
   AUTH: '/auth',
   HOME: '/home',
   MAP: '/map',
@@ -26,6 +28,13 @@ const GUEST_ONLY_META = Object.freeze({ guestOnly: true })
 const REQUIRES_AUTH_META = Object.freeze({ requiresAuth: true })
 
 export const ROUTE_BINDINGS = Object.freeze([
+  Object.freeze({
+    key: ROUTE_NAMES.ADMIN,
+    path: ROUTE_PATHS.ADMIN,
+    name: ROUTE_NAMES.ADMIN,
+    screen: UI_SCREENS.ADMIN,
+    meta: REQUIRES_AUTH_META,
+  }),
   Object.freeze({
     key: ROUTE_NAMES.AUTH,
     path: ROUTE_PATHS.AUTH,
@@ -79,6 +88,10 @@ export const ROUTE_BINDINGS = Object.freeze([
 
 export function routeToAuth() {
   return { name: ROUTE_NAMES.AUTH }
+}
+
+export function routeToAdmin() {
+  return { name: ROUTE_NAMES.ADMIN }
 }
 
 export function routeToHome() {

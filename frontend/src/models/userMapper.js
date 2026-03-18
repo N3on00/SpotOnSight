@@ -28,6 +28,7 @@ export function normalizeUser(raw) {
     avatar_image: asTextOr(item.avatar_image || item.avatarImage),
     social_accounts: socialAccounts,
     follow_requires_approval: Boolean(item.follow_requires_approval ?? item.followRequiresApproval),
+    is_admin: Boolean(item.is_admin ?? item.isAdmin),
     created_at: asTextOr(item.created_at || item.createdAt),
   }
 }

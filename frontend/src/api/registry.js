@@ -78,6 +78,12 @@ export const API_ENDPOINTS = Object.freeze({
   SOCIAL_FOLLOWING_LIST: 'social.following.list',
 
   SOCIAL_SUPPORT_TICKETS_CREATE: 'social.support.tickets.create',
+  SOCIAL_REPORTS_CREATE: 'social.reports.create',
+  SOCIAL_NOTIFICATIONS_LIST: 'social.notifications.list',
+  ADMIN_REPORTS_LIST: 'admin.reports.list',
+  ADMIN_REPORTS_REVIEW: 'admin.reports.review',
+  ADMIN_USERS_LIST: 'admin.users.list',
+  ADMIN_USERS_UPDATE: 'admin.users.update',
 
   SOCIAL_COMMENTS_LIST: 'social.comments.list',
   SOCIAL_COMMENTS_CREATE: 'social.comments.create',
@@ -264,6 +270,42 @@ registerApiEndpoint({
   key: API_ENDPOINTS.SOCIAL_SUPPORT_TICKETS_CREATE,
   method: 'POST',
   path: '/social/support/tickets',
+})
+
+registerApiEndpoint({
+  key: API_ENDPOINTS.SOCIAL_REPORTS_CREATE,
+  method: 'POST',
+  path: '/social/reports',
+})
+
+registerApiEndpoint({
+  key: API_ENDPOINTS.SOCIAL_NOTIFICATIONS_LIST,
+  method: 'GET',
+  path: '/social/notifications',
+})
+
+registerApiEndpoint({
+  key: API_ENDPOINTS.ADMIN_REPORTS_LIST,
+  method: 'GET',
+  path: '/social/admin/reports',
+})
+
+registerApiEndpoint({
+  key: API_ENDPOINTS.ADMIN_REPORTS_REVIEW,
+  method: 'PATCH',
+  path: '/social/admin/reports/{reportId}',
+})
+
+registerApiEndpoint({
+  key: API_ENDPOINTS.ADMIN_USERS_LIST,
+  method: 'GET',
+  path: '/social/admin/users',
+})
+
+registerApiEndpoint({
+  key: API_ENDPOINTS.ADMIN_USERS_UPDATE,
+  method: 'PATCH',
+  path: '/social/admin/users/{userId}',
 })
 
 registerApiEndpoint({

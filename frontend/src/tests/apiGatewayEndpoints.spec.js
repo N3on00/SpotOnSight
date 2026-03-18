@@ -255,6 +255,66 @@ const ENDPOINT_FIXTURES = Object.freeze({
     },
     expectedPath: '/social/support/tickets',
   },
+  [API_ENDPOINTS.SOCIAL_REPORTS_CREATE]: {
+    options: {
+      body: {
+        target_type: 'spot',
+        target_id: 'spot-1',
+        reason: 'spam',
+        details: 'Looks like spam.',
+      },
+    },
+    expectedPath: '/social/reports',
+  },
+  [API_ENDPOINTS.SOCIAL_NOTIFICATIONS_LIST]: {
+    options: {},
+    expectedPath: '/social/notifications',
+  },
+  [API_ENDPOINTS.ADMIN_REPORTS_LIST]: {
+    options: {
+      query: {
+        status: 'open',
+        limit: 50,
+      },
+    },
+    expectedPath: '/social/admin/reports?status=open&limit=50',
+  },
+  [API_ENDPOINTS.ADMIN_REPORTS_REVIEW]: {
+    options: {
+      params: {
+        reportId: 'report 1',
+      },
+      body: {
+        status: 'upheld',
+        action: 'hide_content',
+        severity: 'medium',
+        admin_notes: 'Confirmed by admin.',
+      },
+    },
+    expectedPath: '/social/admin/reports/report%201',
+  },
+  [API_ENDPOINTS.ADMIN_USERS_LIST]: {
+    options: {
+      query: {
+        q: 'demo',
+        limit: 25,
+      },
+    },
+    expectedPath: '/social/admin/users?q=demo&limit=25',
+  },
+  [API_ENDPOINTS.ADMIN_USERS_UPDATE]: {
+    options: {
+      params: {
+        userId: 'user 1',
+      },
+      body: {
+        account_status: 'watch',
+        reason: 'Timeout active.',
+        posting_timeout_until: '2026-03-19T10:00:00Z',
+      },
+    },
+    expectedPath: '/social/admin/users/user%201',
+  },
 
   [API_ENDPOINTS.SOCIAL_COMMENTS_LIST]: {
     options: {

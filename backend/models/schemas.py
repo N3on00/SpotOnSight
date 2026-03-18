@@ -90,6 +90,7 @@ class UserPublic(BaseModel):
     avatar_image: str = ""
     social_accounts: Dict[str, str] = Field(default_factory=dict)
     follow_requires_approval: bool = False
+    is_admin: bool = False
     created_at: datetime
 
 
@@ -115,6 +116,7 @@ class SpotPublic(BaseModel):
     images: List[str] = Field(default_factory=list)
     visibility: Literal["public", "following", "invite_only", "personal"] = "public"
     invite_user_ids: List[str] = Field(default_factory=list)
+    moderation_status: Literal["visible", "flagged", "hidden"] = "visible"
     created_at: datetime
 
 
@@ -141,6 +143,65 @@ class SupportTicketPublic(BaseModel):
     contact_email: str = ""
     allow_contact: bool = False
     status: Literal["open", "closed"] = "open"
+    created_at: datetime
+
+
+class ModerationReportCreateRequest(BaseModel):
+    target_type: Literal["spot", "comment", "meetup_comment", "user"]
+    target_id: str = Field(min_length=1, max_length=120)
+    reason: Literal["spam", "harassment", "explicit_content", "impersonation", "other"] = "other"
+    details: str = Field(default="", max_length=3000)
+
+
+class ModerationReportReviewRequest(BaseModel):
+    status: Literal["upheld", "dismissed"]
+    action: Literal["none", "hide_content", "ban_user"] = "none"
+    severity: Literal["low", "medium", "high"] = "medium"
+    admin_notes: str = Field(default="", max_length=3000)
+
+
+class ModerationUserStatusRequest(BaseModel):
+    account_status: Literal["active", "watch", "banned"]
+    reason: str = Field(default="", max_length=1000)
+    posting_timeout_until: Optional[datetime] = None
+
+
+class ModerationReportPublic(BaseModel):
+    id: str
+    reporter_user_id: str
+    target_type: Literal["spot", "comment", "meetup_comment", "user"]
+    target_id: str
+    target_owner_user_id: str = ""
+    reason: Literal["spam", "harassment", "explicit_content", "impersonation", "other"] = "other"
+    details: str = ""
+    status: Literal["open", "upheld", "dismissed"] = "open"
+    severity: str = ""
+    action_taken: str = ""
+    admin_notes: str = ""
+    created_at: datetime
+    reviewed_at: Optional[datetime] = None
+    reviewed_by: str = ""
+
+
+class ModerationNotificationPublic(BaseModel):
+    id: str
+    user_id: str
+    title: str
+    message: str
+    details: str = ""
+    created_at: datetime
+
+
+class ModerationUserPublic(BaseModel):
+    id: str
+    username: str
+    email: str
+    display_name: str
+    account_status: Literal["active", "watch", "banned"] = "active"
+    account_status_reason: str = ""
+    posting_timeout_until: Optional[datetime] = None
+    active_strike_weight: int = 0
+    recent_strike_count: int = 0
     created_at: datetime
 
 
@@ -175,6 +236,9 @@ class AuthUserRecord(BaseModel):
     social_accounts: Dict[str, str] = Field(default_factory=dict)
     follow_requires_approval: bool = False
     is_admin: bool = Field(default=False)
+    account_status: Literal["active", "watch", "banned"] = "active"
+    account_status_reason: str = Field(default="", max_length=1000)
+    posting_timeout_until: Optional[datetime] = None
     created_at: Optional[datetime] = None
 
     @field_validator("username")
@@ -239,6 +303,7 @@ class SpotComment(BaseModel):
     spot_id: str
     user_id: str
     message: str = Field(min_length=1, max_length=2000)
+    moderation_status: Literal["visible", "flagged", "hidden"] = "visible"
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -302,6 +367,7 @@ class MeetupComment(BaseModel):
     meetup_id: str
     user_id: str
     message: str = Field(min_length=1, max_length=2000)
+    moderation_status: Literal["visible", "flagged", "hidden"] = "visible"
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -703,6 +769,87 @@ def _support_admin_delete_endpoint(repos):
     return delete_ticket
 
 
+def _moderation_report_create_wrapper(repos):
+    actions = _social_actions(repos)
+
+    def wrapper(_endpoint):
+        from services.auth.current_user import get_current_user
+
+        async def create_report(entity_data: Dict[str, Any], current_user: dict = Depends(get_current_user)):
+            req = ModerationReportCreateRequest.model_validate(entity_data)
+            return actions.create_moderation_report(req, current_user)
+
+        return create_report
+
+    return wrapper
+
+
+def _moderation_notifications_endpoint(repos):
+    actions = _social_actions(repos)
+    from services.auth.current_user import get_current_user
+
+    async def moderation_notifications(current_user: dict = Depends(get_current_user)):
+        return actions.list_moderation_notifications(current_user)
+
+    return moderation_notifications
+
+
+def _moderation_admin_reports_endpoint(repos):
+    actions = _social_actions(repos)
+    from core.admin_setup import get_current_admin_user
+
+    async def list_reports(
+        status: str = Query(default="open", max_length=20),
+        limit: int = Query(default=100, ge=1, le=300),
+        _admin_user: dict = Depends(get_current_admin_user),
+    ):
+        return actions.list_moderation_reports(status, limit)
+
+    return list_reports
+
+
+def _moderation_admin_review_endpoint(repos):
+    actions = _social_actions(repos)
+    from core.admin_setup import get_current_admin_user
+
+    async def review_report(
+        report_id: str,
+        req: ModerationReportReviewRequest,
+        admin_user: dict = Depends(get_current_admin_user),
+    ):
+        return actions.review_moderation_report(report_id, req, admin_user)
+
+    return review_report
+
+
+def _moderation_admin_users_endpoint(repos):
+    actions = _social_actions(repos)
+    from core.admin_setup import get_current_admin_user
+
+    async def list_users(
+        q: str = Query(default="", max_length=80),
+        limit: int = Query(default=100, ge=1, le=300),
+        _admin_user: dict = Depends(get_current_admin_user),
+    ):
+        return actions.list_moderated_users(q, limit)
+
+    return list_users
+
+
+def _moderation_admin_user_update_endpoint(repos):
+    actions = _social_actions(repos)
+    from core.admin_setup import get_current_admin_user
+
+    async def update_user_status(
+        user_id: str,
+        req: ModerationUserStatusRequest,
+        admin_user: dict = Depends(get_current_admin_user),
+    ):
+        return actions.update_user_moderation_status(user_id, req, admin_user)
+
+    return update_user_status
+
+
 def _comments_create_wrapper(repos):
     actions = _social_actions(repos)
 
@@ -1029,6 +1176,29 @@ register_social_actor(
             ExtraRouteSpec("GET", "/support/tickets/admin/all", _support_admin_list_endpoint, response_model=list[SupportTicketPublic]),
             ExtraRouteSpec("PATCH", "/support/tickets/{ticket_id}/status", _support_admin_update_endpoint, response_model=SupportTicketPublic),
             ExtraRouteSpec("DELETE", "/support/tickets/{ticket_id}", _support_admin_delete_endpoint),
+        ),
+    ),
+)
+
+register_social_actor(
+    ModerationReportCreateRequest,
+    name="moderation",
+    order=75,
+    crud=SocialCrudSpec(
+        repository_getter=lambda repos: repos.moderation_reports,
+        prefix="",
+        auth_dependency_factory=_current_user_dependency,
+        route_enabled=CrudRouteEnabled(create=True, read_all=False, read=False, update=False, delete=False),
+        route_configs=CrudRouteConfigs(
+            create=CrudRouteConfig(path="/reports", response_model=ModerationReportPublic, status_code=201),
+        ),
+        create_wrappers=(_moderation_report_create_wrapper,),
+        extra_routes=(
+            ExtraRouteSpec("GET", "/notifications", _moderation_notifications_endpoint, response_model=list[ModerationNotificationPublic]),
+            ExtraRouteSpec("GET", "/admin/reports", _moderation_admin_reports_endpoint, response_model=list[ModerationReportPublic]),
+            ExtraRouteSpec("PATCH", "/admin/reports/{report_id}", _moderation_admin_review_endpoint, response_model=ModerationReportPublic),
+            ExtraRouteSpec("GET", "/admin/users", _moderation_admin_users_endpoint, response_model=list[ModerationUserPublic]),
+            ExtraRouteSpec("PATCH", "/admin/users/{user_id}", _moderation_admin_user_update_endpoint, response_model=ModerationUserPublic),
         ),
     ),
 )

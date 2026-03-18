@@ -1,3 +1,4 @@
+import '../registrations/adminUi'
 import '../registrations/authUi'
 import '../registrations/homeUi'
 import '../registrations/mapUi'

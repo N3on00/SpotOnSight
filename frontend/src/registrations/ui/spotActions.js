@@ -63,3 +63,58 @@ export function createSpotFavoriteAction(app) {
     return true
   }
 }
+
+export function createModerationActions(app) {
+  return {
+    onReportSpot: async (spot) => {
+      const spotId = String(spot?.id || '').trim()
+      if (!spotId) return false
+      const result = await app.controller('social').reportContent(
+        'spot',
+        spotId,
+        'other',
+        'Submitted from the spot details view for admin moderation review.',
+      )
+      if (!result) {
+        notify(app, {
+          level: 'error',
+          title: 'Report failed',
+          message: 'Could not submit this spot report.',
+          details: app.controller('social').lastError(),
+        })
+        return false
+      }
+      notify(app, {
+        level: 'warning',
+        title: 'Spot reported',
+        message: 'Admins have been notified and will review this content.',
+      })
+      return true
+    },
+    onReportUser: async (user) => {
+      const userId = String(user?.id || '').trim()
+      if (!userId) return false
+      const result = await app.controller('social').reportContent(
+        'user',
+        userId,
+        'other',
+        'Submitted from the user profile view for admin moderation review.',
+      )
+      if (!result) {
+        notify(app, {
+          level: 'error',
+          title: 'Report failed',
+          message: 'Could not submit this account report.',
+          details: app.controller('social').lastError(),
+        })
+        return false
+      }
+      notify(app, {
+        level: 'warning',
+        title: 'Account reported',
+        message: 'Admins have been notified and will review this account.',
+      })
+      return true
+    },
+  }
+}

@@ -4,7 +4,7 @@ import { UI_ACTIONS, UI_COMPONENT_IDS, UI_SCREENS } from '../core/uiElements'
 import { routeToMap, routeToProfile, routeToSettings } from '../router/routeSpec'
 import ProfileHero from '../components/profile/ProfileHero.vue'
 import ProfileSummary from '../components/profile/ProfileSummary.vue'
-import { createSpotCommentActions, createSpotFavoriteAction, notify } from './uiShared'
+import { createModerationActions, createSpotCommentActions, createSpotFavoriteAction, notify } from './uiShared'
 
 class ProfilePageErrorHandler extends ProfileScreenErrorHandler {}
 
@@ -57,7 +57,9 @@ profileScreen.main({
   id: UI_COMPONENT_IDS.PROFILE_SUMMARY,
   order: 10,
   component: ProfileSummary,
-  buildProps: ({ app, router }) => ({
+  buildProps: ({ app, router }) => {
+    const moderation = createModerationActions(app)
+    return ({
     profile: app.state.profile.current,
     createdSpots: app.state.profile.createdSpots,
     favoriteSpots: app.state.profile.favoriteSpots,
@@ -141,6 +143,8 @@ profileScreen.main({
       router.push(routeToMap({ lat, lon, spotId }))
     },
     onToggleFavorite: createSpotFavoriteAction(app),
+    onReportSpot: moderation.onReportSpot,
+    onReportProfile: moderation.onReportUser,
     onLoadUserProfile: async (userId) => {
       return app.controller('users').profile(userId)
     },
@@ -153,7 +157,8 @@ profileScreen.main({
       router.push(routeToSettings())
     },
     onNotify: (payload) => notify(app, payload),
-  }),
+    })
+  },
 })
 
 profileScreen.lifecycle({

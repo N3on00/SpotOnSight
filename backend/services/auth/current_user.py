@@ -40,5 +40,10 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> dict[str, Any]:
     user_doc = _find_user_by_id(user_id)
     if not user_doc:
         raise credentials_error
+    if str(user_doc.get("account_status") or "active").strip().lower() == "banned":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account has been banned",
+        )
 
     return user_doc

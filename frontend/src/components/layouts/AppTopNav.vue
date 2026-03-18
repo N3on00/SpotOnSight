@@ -6,6 +6,7 @@ import { toImageSource } from '../../models/imageMapper'
 import { NOTIFICATION_CATEGORIES } from '../../services/notificationService'
 import {
   ROUTE_NAMES,
+  routeToAdmin,
   routeToAuth,
   routeToHome,
   routeToMap,
@@ -38,11 +39,15 @@ const NOTIFICATION_CATEGORY_LABELS = {
 }
 
 const navEntries = computed(() => {
-  return [
+  const items = [
     { key: ROUTE_NAMES.SOCIAL, label: 'Social', icon: 'bi-people', to: routeToSocial() },
     { key: ROUTE_NAMES.MAP, label: 'Map', icon: 'bi-map', to: routeToMap() },
     { key: ROUTE_NAMES.HOME, label: 'Home', icon: 'bi-house', to: routeToHome() },
   ]
+  if (Boolean(me.value?.is_admin)) {
+    items.unshift({ key: ROUTE_NAMES.ADMIN, label: 'Admin', icon: 'bi-shield-lock', to: routeToAdmin() })
+  }
+  return items
 })
 
 const me = computed(() => app.state.session.user || null)

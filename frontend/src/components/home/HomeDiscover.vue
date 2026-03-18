@@ -13,6 +13,7 @@ const props = defineProps({
   onOpenProfile: { type: Function, required: true },
   onRefresh: { type: Function, required: true },
   onGoToSpot: { type: Function, required: true },
+  onReportSpot: { type: Function, default: null },
   onToggleFavorite: { type: Function, required: true },
   onLoadUserProfile: { type: Function, required: true },
   onNotify: { type: Function, required: true },
@@ -163,6 +164,7 @@ function setCommentDraft(next) {
         :on-create-comment="createComment"
         :on-update-comment="updateComment"
         :on-delete-comment="deleteComment"
+        :on-report="onReportSpot"
       />
     </div>
   </section>

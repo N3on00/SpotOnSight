@@ -21,7 +21,7 @@ def test_social_router_assembles_actor_routers(monkeypatch):
     monkeypatch.setattr(
         social_router_module,
         "build_social_actor_routers",
-        lambda _repos: [APIRouter() for _ in range(9)],
+        lambda _repos: [APIRouter() for _ in range(10)],
     )
 
     router = social_router_module.get_social_router()
@@ -38,6 +38,7 @@ def test_social_actor_specs_are_registered_from_dto_metadata() -> None:
         "blocks",
         "shares",
         "support",
+        "moderation",
         "meetups",
         "comments",
     ]

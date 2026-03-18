@@ -1,4 +1,5 @@
 export const UI_SCREENS = Object.freeze({
+  ADMIN: 'admin',
   AUTH: 'auth',
   HOME: 'home',
   MAP: 'map',
@@ -15,6 +16,7 @@ export const UI_SLOTS = Object.freeze({
 })
 
 export const UI_ACTIONS = Object.freeze({
+  ADMIN_REFRESH: 'admin.refresh',
   AUTH_HELP: 'auth.help',
   HOME_REFRESH: 'home.refresh',
   MAP_RELOAD: 'map.reload',
@@ -24,6 +26,8 @@ export const UI_ACTIONS = Object.freeze({
 })
 
 export const UI_COMPONENT_IDS = Object.freeze({
+  ADMIN_HERO: 'admin.hero',
+  ADMIN_PANEL: 'admin.panel',
   AUTH_HERO: 'auth.hero',
   AUTH_FORMS: 'auth.forms',
   AUTH_SUPPORT: 'auth.support',
@@ -47,6 +51,11 @@ const AUTH_SLOTS = Object.freeze([UI_SLOTS.HEADER, UI_SLOTS.MAIN, UI_SLOTS.FOOTE
 const DEFAULT_SLOTS = Object.freeze([UI_SLOTS.HEADER, UI_SLOTS.MAIN])
 
 export const UI_LAYOUTS = Object.freeze({
+  [UI_SCREENS.ADMIN]: Object.freeze({
+    screen: UI_SCREENS.ADMIN,
+    slots: DEFAULT_SLOTS,
+    screenClass: 'container-xxl py-3 py-md-4',
+  }),
   [UI_SCREENS.AUTH]: Object.freeze({
     screen: UI_SCREENS.AUTH,
     slots: AUTH_SLOTS,
