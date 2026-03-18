@@ -4,6 +4,7 @@ export class NotificationService {
   constructor(state) {
     this.state = state
     this._timers = new Map()
+    this._holdCounts = new Map()
   }
 
   _defaultDuration(level) {
@@ -35,10 +36,7 @@ export class NotificationService {
 
     if (!sticky) {
       const timeout = Number.isFinite(durationMs) ? Number(durationMs) : this._defaultDuration(level)
-      const timer = setTimeout(() => {
-        this.remove(id)
-      }, Math.max(1200, timeout))
-      this._timers.set(id, timer)
+      this._scheduleRemoval(id, timeout)
     }
 
     if (this.state.notifications.length > 6) {
@@ -52,15 +50,52 @@ export class NotificationService {
   }
 
   remove(id) {
+    this._clearTimer(id)
+    this._holdCounts.delete(id)
+    this.state.notifications = this.state.notifications.filter((n) => n.id !== id)
+  }
+
+  hold(id) {
+    if (!this._hasNotification(id)) return
+    const nextCount = (this._holdCounts.get(id) || 0) + 1
+    this._holdCounts.set(id, nextCount)
+    this._clearTimer(id)
+  }
+
+  release(id, delayMs = 4000) {
+    if (!this._hasNotification(id)) return
+    const currentCount = this._holdCounts.get(id) || 0
+    if (currentCount <= 0) return
+    if (currentCount === 1) {
+      this._holdCounts.delete(id)
+    } else {
+      this._holdCounts.set(id, currentCount - 1)
+      return
+    }
+    this._scheduleRemoval(id, delayMs)
+  }
+
+  clearLog() {
+    this.state.notificationLog = []
+  }
+
+  _hasNotification(id) {
+    return this.state.notifications.some((entry) => entry.id === id)
+  }
+
+  _clearTimer(id) {
     const t = this._timers.get(id)
     if (t) {
       clearTimeout(t)
       this._timers.delete(id)
     }
-    this.state.notifications = this.state.notifications.filter((n) => n.id !== id)
   }
 
-  clearLog() {
-    this.state.notificationLog = []
+  _scheduleRemoval(id, delayMs) {
+    this._clearTimer(id)
+    const timer = setTimeout(() => {
+      this.remove(id)
+    }, Math.max(1200, Number(delayMs) || 4000))
+    this._timers.set(id, timer)
   }
 }
