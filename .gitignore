@@ -9,6 +9,8 @@
 .env
 .env.*
 !.env.example
+!.env.production.example
+!.env.staging.example
 .tile_cache/
 cache/
 frontend/.vite/
