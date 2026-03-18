@@ -3,13 +3,14 @@ from __future__ import annotations
 import os
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes.auth import get_auth_router
 from core.registry import get_routers
 from core.admin_setup import ensure_admin_user
 from api.routes.social import get_social_router
+from repositories.mongo_repository import ping_mongo
 
 
 def _cors_origins() -> list[str]:
@@ -62,6 +63,21 @@ class Routing:
 
         self._app.include_router(get_auth_router())
         self._app.include_router(get_social_router())
+
+        @self._app.get("/health", tags=["Health"])
+        def healthcheck(response: Response) -> dict[str, object]:
+            try:
+                mongo_ok = ping_mongo()
+            except Exception:
+                mongo_ok = False
+            response.status_code = status.HTTP_200_OK if mongo_ok else status.HTTP_503_SERVICE_UNAVAILABLE
+            return {
+                "status": "ok" if mongo_ok else "degraded",
+                "services": {
+                    "api": "ok",
+                    "mongo": "ok" if mongo_ok else "unavailable",
+                },
+            }
 
     def get_app(self) -> FastAPI:
         return self._app

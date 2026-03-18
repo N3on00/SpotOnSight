@@ -90,6 +90,25 @@ describe('Auth failure and unauthorized handling', () => {
       }),
     )
   })
+
+  it('supports a relative API base path for proxied production requests', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ status: 'ok' }),
+    }))
+
+    vi.stubGlobal('fetch', fetchMock)
+    vi.stubGlobal('location', { origin: 'https://app.example.com' })
+
+    const apiClient = new TestApiClient('/api')
+    await apiClient.get('/health')
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://app.example.com/api/health',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
 })
 
 describe('Session persistence and offline resilience', () => {

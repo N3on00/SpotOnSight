@@ -1,0 +1,19 @@
+name: docker-validate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  docker-validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare production env template
+        run: cp .env.production.example .env.production
+
+      - name: Validate production compose file
+        run: docker compose -f docker-compose.prod.yml config

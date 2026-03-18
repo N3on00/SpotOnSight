@@ -1,0 +1,54 @@
+services:
+  backend:
+    image: python:3.12-slim
+    working_dir: /workspace/backend
+    env_file:
+      - ${APP_ENV_FILE:-.env}
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      PYTHONPATH: /workspace/backend
+    command: >
+      sh -c "pip install --no-cache-dir -r requirements.txt
+      && uvicorn main:create_app --factory --reload --host 0.0.0.0 --port 8000"
+    volumes:
+      - ./backend:/workspace/backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /workspace/frontend
+    env_file:
+      - ${APP_ENV_FILE:-.env}
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+      VITE_SUPPORT_EMAIL: ${VITE_SUPPORT_EMAIL:-support@example.com}
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    volumes:
+      - ./frontend:/workspace/frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      backend:
+        condition: service_started
+
+  mongo:
+    image: mongo:7
+    command: ["mongod", "--bind_ip_all"]
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_dev_data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet mongodb://localhost:27017 --eval \"quit(db.adminCommand('ping').ok ? 0 : 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  mongo_dev_data:

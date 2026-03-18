@@ -17,6 +17,7 @@ from main import create_app  # noqa: E402
 
 def _expected_routes() -> set[tuple[str, str]]:
     return {
+        ("GET", "/health"),
         # Generic authenticated CRUD endpoints
         ("POST", "/spots/"),
         ("GET", "/spots/"),
@@ -99,6 +100,22 @@ def test_openapi_is_reachable(app):
     assert response.status_code == 200
     payload = response.json()
     assert "paths" in payload
+
+
+def test_healthcheck_is_reachable(app, monkeypatch):
+    client = TestClient(app)
+    monkeypatch.setattr("core.application.ping_mongo", lambda: True)
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "services": {
+            "api": "ok",
+            "mongo": "ok",
+        },
+    }
 
 
 @pytest.mark.parametrize(

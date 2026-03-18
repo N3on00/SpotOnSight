@@ -15,3 +15,5 @@ frontend/.vite/
 mobile/capacitor/android/.gradle/
 mobile/capacitor/android/app/build/
 mobile/capacitor/ios/App/App/public/
+ssh.txt
+ssh.txt.pub

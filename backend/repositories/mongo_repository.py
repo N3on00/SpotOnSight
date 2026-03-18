@@ -1,20 +1,48 @@
-from bson import ObjectId
-from pymongo import MongoClient
-from pydantic import BaseModel
-from typing import Any, TypeVar, Type, Optional
 import os
+from typing import Any, Optional, Type, TypeVar
+
+from bson import ObjectId
+from pydantic import BaseModel
+from pymongo import MongoClient
 
 T = TypeVar('T', bound=BaseModel)
+
+
+def mongo_url() -> str:
+    return str(os.getenv("MONGO_URL") or "mongodb://localhost:27017").strip() or "mongodb://localhost:27017"
+
+
+def mongo_server_selection_timeout_ms() -> int:
+    return int(os.getenv("MONGO_SERVER_SELECTION_TIMEOUT_MS") or "2000")
+
+
+def default_db_name() -> str:
+    return str(os.getenv("MONGO_DB") or "spot_on_sight").strip() or "spot_on_sight"
+
+
+def create_mongo_client() -> MongoClient:
+    return MongoClient(
+        mongo_url(),
+        serverSelectionTimeoutMS=mongo_server_selection_timeout_ms(),
+    )
+
+
+def ping_mongo() -> bool:
+    client = create_mongo_client()
+    try:
+        client.admin.command("ping")
+        return True
+    finally:
+        client.close()
+
 
 class MongoRepository:
     """Generic MongoDB repository for CRUD operations"""
     
     def __init__(self, collection_name: str, model_type: Type[T], db_name: str | None = None):
         """Initialize repository with collection and model type"""
-        mongo_url = os.getenv("MONGO_URL", "mongodb://localhost:27017")
-        server_selection_timeout_ms = int(os.getenv("MONGO_SERVER_SELECTION_TIMEOUT_MS", "2000"))
-        self.client = MongoClient(mongo_url, serverSelectionTimeoutMS=server_selection_timeout_ms)
-        resolved_db = str(db_name or os.getenv("MONGO_DB", "spot_on_sight")).strip() or "spot_on_sight"
+        self.client = create_mongo_client()
+        resolved_db = str(db_name or default_db_name()).strip() or "spot_on_sight"
         self.db = self.client[resolved_db]
         self.collection = self.db[collection_name]
         self.model_type = model_type

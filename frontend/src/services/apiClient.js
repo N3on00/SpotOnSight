@@ -1,5 +1,52 @@
 import { createApiError } from './apiErrors'
 
+function runtimeOrigin() {
+  const origin = String(globalThis?.location?.origin || '').trim()
+  return origin || 'http://localhost'
+}
+
+function hasAbsoluteScheme(value) {
+  return /^[a-z][a-z\d+.-]*:\/\//i.test(String(value || '').trim())
+}
+
+function normalizeBaseUrl(baseUrl) {
+  const raw = String(baseUrl || '').trim()
+  if (!raw) {
+    return {
+      origin: runtimeOrigin(),
+      basePath: '',
+    }
+  }
+
+  const parsed = hasAbsoluteScheme(raw)
+    ? new URL(raw)
+    : new URL(raw, runtimeOrigin())
+
+  return {
+    origin: parsed.origin,
+    basePath: parsed.pathname === '/' ? '' : parsed.pathname.replace(/\/+$/, ''),
+  }
+}
+
+function buildRequestUrl(baseUrl, path) {
+  const rawPath = String(path || '').trim()
+  if (hasAbsoluteScheme(rawPath)) {
+    return rawPath
+  }
+
+  const { origin, basePath } = normalizeBaseUrl(baseUrl)
+  const [pathnameAndSearch = '/', hashPart = ''] = rawPath.split('#', 2)
+  const [pathnamePart = '/', searchPart = ''] = pathnameAndSearch.split('?', 2)
+  const normalizedPath = `/${String(pathnamePart || '/').replace(/^\/+/, '')}`
+  const url = new URL(origin)
+
+  url.pathname = `${basePath}${normalizedPath}` || '/'
+  url.search = searchPart ? `?${searchPart}` : ''
+  url.hash = hashPart ? `#${hashPart}` : ''
+
+  return url.toString()
+}
+
 export class ApiClient {
   constructor(baseUrl, { onUnauthorized } = {}) {
     this.baseUrl = baseUrl
@@ -34,7 +81,7 @@ export class ApiClient {
 
     let lastError = null
     for (const p of tryPaths) {
-      const url = new URL(p, this.baseUrl).toString()
+      const url = buildRequestUrl(this.baseUrl, p)
       try {
         const res = await fetch(url, { method, headers, body: payload })
         const text = await res.text()

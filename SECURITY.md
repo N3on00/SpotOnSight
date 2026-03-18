@@ -14,5 +14,7 @@ This repository covers the SpotOnSight backend API, Vue frontend, and Capacitor 
 ## Secrets
 
 - Never commit production credentials
-- Use `.env.example` as the reference for local setup
+- Use `.env.example` as the reference for local development setup only
+- Use `.env.staging.example` and `.env.production.example` as deployment variable templates only
+- Keep real runtime env files and secret values outside version control
 - Rotate any accidentally exposed secrets immediately
