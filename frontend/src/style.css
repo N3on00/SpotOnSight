@@ -436,6 +436,10 @@ body {
   padding-inline: 0.55rem;
 }
 
+.app-top-nav__user-trigger--active {
+  box-shadow: 0 6px 16px rgba(31, 124, 114, 0.22);
+}
+
 .app-top-nav__user-trigger {
   display: inline-flex;
   align-items: center;
