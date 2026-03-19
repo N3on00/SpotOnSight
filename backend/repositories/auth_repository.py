@@ -24,22 +24,22 @@ def _create_repository() -> MongoRepository:
         db_name=auth_db_name(),
     )
 
-    for user in repo.collection.find({}, {"_id": 1, "username": 1, "email": 1, "display_name": 1}):
-        username = normalize_username(user.get("username"))
-        email = normalize_email(user.get("email"))
-        display_name = normalize_text(user.get("display_name") or username)
-        updates = {
-            "username": username,
-            "username_key": normalize_search_text(username),
-            "username_search": normalize_search_text(username),
-            "email": email,
-            "email_key": normalize_email(email),
-            "display_name": display_name,
-            "display_name_search": normalize_search_text(display_name),
-        }
-        repo.collection.update_one({"_id": user["_id"]}, {"$set": updates})
-
     try:
+        for user in repo.collection.find({}, {"_id": 1, "username": 1, "email": 1, "display_name": 1}):
+            username = normalize_username(user.get("username"))
+            email = normalize_email(user.get("email"))
+            display_name = normalize_text(user.get("display_name") or username)
+            updates = {
+                "username": username,
+                "username_key": normalize_search_text(username),
+                "username_search": normalize_search_text(username),
+                "email": email,
+                "email_key": normalize_email(email),
+                "display_name": display_name,
+                "display_name_search": normalize_search_text(display_name),
+            }
+            repo.collection.update_one({"_id": user["_id"]}, {"$set": updates})
+
         repo.collection.create_index([("username", ASCENDING)], unique=True)
         repo.collection.create_index([("email", ASCENDING)], unique=True)
         repo.collection.create_index([("display_name", ASCENDING)])
