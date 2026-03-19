@@ -11,6 +11,7 @@ const notifications = computed(() => app.state.notifications)
 const detailsExpanded = reactive({})
 const hovered = reactive({})
 const RELEASE_DELAY_MS = 4000
+const EXPANDED_RELEASE_DELAY_MS = 9000
 
 watch(
   notifications,
@@ -109,12 +110,14 @@ function toggleDetails(n) {
   detailsExpanded[id] = nextExpanded
 
   if (nextExpanded) {
-    notify.hold(n.id)
+    if (!hovered[id]) {
+      notify.reschedule(n.id, EXPANDED_RELEASE_DELAY_MS)
+    }
     return
   }
 
   if (!hovered[id]) {
-    notify.release(n.id, RELEASE_DELAY_MS)
+    notify.reschedule(n.id, RELEASE_DELAY_MS)
   }
 }
 
@@ -135,10 +138,7 @@ function onLeave(n) {
   const id = String(n?.id || '')
   if (!id) return
   hovered[id] = false
-  if (detailsExpanded[id]) {
-    return
-  }
-  notify.release(n.id, RELEASE_DELAY_MS)
+   notify.release(n.id, detailsExpanded[id] ? EXPANDED_RELEASE_DELAY_MS : RELEASE_DELAY_MS)
 }
 
 async function copyDetails(details) {

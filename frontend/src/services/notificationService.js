@@ -90,6 +90,12 @@ export class NotificationService {
     this._scheduleRemoval(id, delayMs)
   }
 
+  reschedule(id, delayMs = 4000) {
+    if (!this._hasNotification(id)) return
+    if ((this._holdCounts.get(id) || 0) > 0) return
+    this._scheduleRemoval(id, delayMs)
+  }
+
   clearLog() {
     this.state.notificationLog = []
   }

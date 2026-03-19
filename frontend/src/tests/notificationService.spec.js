@@ -91,4 +91,18 @@ describe('NotificationService', () => {
     expect(state.notificationLog[0].category).toBe(NOTIFICATION_CATEGORIES.SYSTEM)
     expect(state.notificationLog[1].category).toBe(NOTIFICATION_CATEGORIES.SOCIAL)
   })
+
+  it('can reschedule dismissal for expanded notifications without making them sticky', () => {
+    const state = { notifications: [], notificationLog: [] }
+    const service = new NotificationService(state)
+
+    const id = service.push({ title: 'Failed', message: 'Spot save failed.', durationMs: 2000 })
+    service.reschedule(id, 9000)
+
+    vi.advanceTimersByTime(8999)
+    expect(state.notifications).toHaveLength(1)
+
+    vi.advanceTimersByTime(1)
+    expect(state.notifications).toHaveLength(0)
+  })
 })
