@@ -4,6 +4,8 @@ set -eu
 COMPOSE_FILE="docker-compose.prod.yml"
 ENV_FILE=".env.production"
 
+docker network inspect spotonsight_proxy >/dev/null 2>&1 || docker network create spotonsight_proxy >/dev/null
+
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --build --remove-orphans
 
 attempt=1
