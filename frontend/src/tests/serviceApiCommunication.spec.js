@@ -110,19 +110,19 @@ describe('AuthService API communication', () => {
 
     const service = new TestAuthService(api, createState({ token: '' }))
     const ok = await service.register({
-      username: 'alice',
+      username: 'j\u00f6rg',
       email: 'alice@example.com',
       password: 'pw',
-      displayName: 'Alice',
+      displayName: 'J\u00f6rg 🚀',
     })
 
     expect(ok).toBe(true)
     expect(api.request).toHaveBeenCalledWith(API_ENDPOINTS.AUTH_REGISTER, {
       body: {
-        username: 'alice',
+        username: 'j\u00f6rg',
         email: 'alice@example.com',
         password: 'pw',
-        display_name: 'Alice',
+        display_name: 'J\u00f6rg 🚀',
       },
     })
   })

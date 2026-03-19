@@ -113,20 +113,36 @@ class TestRegisterRequestDTO:
     def test_register_username_min_length(self):
         with pytest.raises(ValidationError) as exc_info:
             RegisterRequest(username="ab", email="test@test.com", password="password123")
-        assert "String should have at least 3 characters" in str(exc_info.value)
+        assert "Invalid username format" in str(exc_info.value)
 
     def test_register_email_validation(self):
-        req = RegisterRequest(
-            username="testuser",
-            email="invalid",
-            password="password123",
-        )
-        assert "@" not in req.email or req.email == "invalid"
+        with pytest.raises(ValidationError) as exc_info:
+            RegisterRequest(
+                username="testuser",
+                email="invalid",
+                password="password123",
+            )
+        assert "Invalid email format" in str(exc_info.value)
 
     def test_register_password_min_length(self):
         with pytest.raises(ValidationError) as exc_info:
             RegisterRequest(username="testuser", email="test@test.com", password="123")
         assert "String should have at least 8 characters" in str(exc_info.value)
+
+    def test_register_allows_umlaut_username_and_emoji_display_name(self):
+        req = RegisterRequest(
+            username="J\u00f6rg",
+            email="joerg@example.com",
+            password="password123",
+            display_name="J\u00f6rg 🚀",
+        )
+        assert req.username == "j\u00f6rg"
+        assert req.display_name == "J\u00f6rg 🚀"
+
+    def test_register_rejects_emoji_username(self):
+        with pytest.raises(ValidationError) as exc_info:
+            RegisterRequest(username="joerg🚀", email="test@test.com", password="password123")
+        assert "Invalid username format" in str(exc_info.value)
 
 
 class TestLoginRequestDTO:
@@ -156,6 +172,11 @@ class TestUpdateProfileRequestDTO:
             social_accounts={"twitter": "@user", "instagram": "@user"}
         )
         assert req.social_accounts == {"twitter": "@user", "instagram": "@user"}
+
+    def test_update_profile_normalizes_unicode_fields(self):
+        req = UpdateProfileRequest(display_name="Cafe\u0301 🚀", bio=" Gru\u0308ezi ")
+        assert req.display_name == "Caf\u00e9 🚀"
+        assert req.bio == "Gr\u00fcezi"
 
 
 class TestUserPublicDTO:

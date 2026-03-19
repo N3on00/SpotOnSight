@@ -5,6 +5,8 @@ from typing import Any
 from bson import ObjectId
 from fastapi import HTTPException, status
 
+from core.text import normalize_login as normalize_login_text, normalize_text
+
 from .repositories import SocialRepositories
 
 
@@ -15,7 +17,7 @@ def serialize_id(value: Any) -> str:
 
 
 def as_text(value: Any) -> str:
-    return str(value or "").strip()
+    return normalize_text(value)
 
 
 def as_float(value: Any, fallback: float = 0.0) -> float:
@@ -26,7 +28,7 @@ def as_float(value: Any, fallback: float = 0.0) -> float:
 
 
 def normalize_login(value: Any) -> str:
-    return as_text(value).lower()
+    return normalize_login_text(value)
 
 
 def normalize_social_accounts(value: Any) -> dict[str, str]:

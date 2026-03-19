@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { SPOT_FEED_SCOPES, getScopeLabel, getScopeIcon, isValidScope } from '../../models/spotFeedScopes'
 import { getStoredLocation, updateStoredRadius } from '../../services/geolocationService'
-import { distanceKm, tokenize } from '../../utils/sanitizers'
+import { distanceKm, normalizeSearchText, tokenize } from '../../utils/sanitizers'
 import ActionButton from '../common/ActionButton.vue'
 import SpotMiniCard from '../common/SpotMiniCard.vue'
 
@@ -68,17 +68,17 @@ const filteredByScope = computed(() => {
   }
 
   if (activeScopeLocal.value === SPOT_FEED_SCOPES.FILTER && props.filters) {
-    const filterText = String(props.filters.text || '').trim().toLowerCase()
-    const filterTags = String(props.filters.tagsText || '').trim().toLowerCase()
+    const normalizedFilterText = normalizeSearchText(props.filters.text)
+    const filterTags = normalizeSearchText(props.filters.tagsText)
 
-    if (filterText || filterTags) {
-      const tokens = filterText ? tokenize(filterText) : []
+    if (normalizedFilterText || filterTags) {
+      const tokens = normalizedFilterText ? tokenize(normalizedFilterText) : []
       const tagTokens = filterTags ? tokenize(filterTags) : []
 
       result = result.filter((spot) => {
-        const title = String(spot.title || '').toLowerCase()
-        const desc = String(spot.description || '').toLowerCase()
-        const tags = Array.isArray(spot.tags) ? spot.tags.map((t) => String(t).toLowerCase()) : []
+        const title = normalizeSearchText(spot.title)
+        const desc = normalizeSearchText(spot.description)
+        const tags = Array.isArray(spot.tags) ? spot.tags.map((t) => normalizeSearchText(t)) : []
 
         if (tokens.length > 0) {
           const matchesText = tokens.some(

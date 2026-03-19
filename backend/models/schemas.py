@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-import re
 from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import Depends, Query
@@ -10,14 +9,19 @@ from pydantic import BaseModel, Field, field_validator
 from api.crud import CrudRouteConfig, CrudRouteConfigs, CrudRouteEnabled
 from core.registry import mongo_entity_encrypted
 from core.social_registry import ExtraRouteSpec, SocialCrudSpec, register_social_actor
+from core.text import is_valid_username, normalize_email, normalize_login, normalize_text, normalize_username
 
 
 def _normalize_email(value: str) -> str:
-    return str(value or "").strip().lower()
+    return normalize_email(value)
 
 
 def _normalize_username(value: str) -> str:
-    return str(value or "").strip().lower()
+    return normalize_username(value)
+
+
+def _normalize_display_text(value: str) -> str:
+    return normalize_text(value)
 
 
 @mongo_entity_encrypted(
@@ -68,6 +72,29 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=8, max_length=200)
     display_name: Optional[str] = Field(default=None, max_length=120)
 
+    @field_validator("username", mode="before")
+    @classmethod
+    def normalize_register_username(cls, v: str) -> str:
+        username = _normalize_username(v)
+        if not is_valid_username(username):
+            raise ValueError("Invalid username format")
+        return username
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_register_email(cls, v: str) -> str:
+        email = _normalize_email(v)
+        if "@" not in email:
+            raise ValueError("Invalid email format")
+        return email
+
+    @field_validator("display_name", mode="before")
+    @classmethod
+    def normalize_register_display_name(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        return _normalize_display_text(v)
+
 
 class UpdateProfileRequest(BaseModel):
     username: Optional[str] = Field(default=None, min_length=3, max_length=40)
@@ -79,6 +106,33 @@ class UpdateProfileRequest(BaseModel):
     follow_requires_approval: Optional[bool] = None
     current_password: Optional[str] = Field(default=None, max_length=200)
     new_password: Optional[str] = Field(default=None, min_length=8, max_length=200)
+
+    @field_validator("username", mode="before")
+    @classmethod
+    def normalize_profile_username(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        username = _normalize_username(v)
+        if not is_valid_username(username):
+            raise ValueError("Invalid username format")
+        return username
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_profile_email(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        email = _normalize_email(v)
+        if "@" not in email:
+            raise ValueError("Invalid email format")
+        return email
+
+    @field_validator("display_name", "bio", "avatar_image", "current_password", mode="before")
+    @classmethod
+    def normalize_profile_text_fields(cls, v):
+        if v is None:
+            return None
+        return _normalize_display_text(v)
 
 
 class UserPublic(BaseModel):
@@ -220,10 +274,10 @@ class LoginRequest(BaseModel):
     username_or_email: str = Field(min_length=3, max_length=200)
     password: str = Field(min_length=1, max_length=200)
 
-    @field_validator("username_or_email")
+    @field_validator("username_or_email", mode="before")
     @classmethod
     def normalize_username_or_email(cls, v: str) -> str:
-        return str(v or "").strip().lower()
+        return normalize_login(v)
 
 
 class AuthUserRecord(BaseModel):
@@ -241,15 +295,15 @@ class AuthUserRecord(BaseModel):
     posting_timeout_until: Optional[datetime] = None
     created_at: Optional[datetime] = None
 
-    @field_validator("username")
+    @field_validator("username", mode="before")
     @classmethod
     def normalize_username(cls, v: str) -> str:
         username = _normalize_username(v)
-        if not re.fullmatch(r"[a-z0-9_.-]{3,40}", username):
+        if not is_valid_username(username):
             raise ValueError("Invalid username format")
         return username
 
-    @field_validator("email")
+    @field_validator("email", mode="before")
     @classmethod
     def normalize_email(cls, v: str) -> str:
         email = _normalize_email(v)
@@ -257,14 +311,19 @@ class AuthUserRecord(BaseModel):
             raise ValueError("Invalid email format")
         return email
 
+    @field_validator("display_name", "bio", "avatar_image", "account_status_reason", mode="before")
+    @classmethod
+    def normalize_user_text_fields(cls, v):
+        return _normalize_display_text(v)
+
     @field_validator("social_accounts")
     @classmethod
     def sanitize_social_accounts(cls, v: Dict[str, str]) -> Dict[str, str]:
         out: Dict[str, str] = {}
         source = v if isinstance(v, dict) else {}
         for key, value in source.items():
-            k = str(key or "").strip()
-            val = str(value or "").strip()
+            k = normalize_text(key)
+            val = normalize_text(value)
             if not k or not val:
                 continue
             if len(k) > 40 or len(val) > 500:

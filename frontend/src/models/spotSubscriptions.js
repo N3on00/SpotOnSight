@@ -2,6 +2,7 @@ import {
   sanitizeText,
   sanitizeNumber,
   normalizeVisibility,
+  normalizeSearchText,
   tokenize,
   distanceKm,
 } from '../utils/sanitizers'
@@ -210,8 +211,8 @@ export function subscriptionMatchesSpot(subscription, spot, favoritesSet = new S
   const title = String(spot.title || '')
   const description = String(spot.description || '')
   const visibility = String(spot.visibility || 'public')
-  const tags = Array.isArray(spot.tags) ? spot.tags.map((x) => String(x || '').toLowerCase()) : []
-  const owner = String(spot.owner_id || '').toLowerCase()
+  const tags = Array.isArray(spot.tags) ? spot.tags.map((x) => normalizeSearchText(x)) : []
+  const owner = normalizeSearchText(spot.owner_id)
 
   if (filters.onlyFavorites) {
     if (!spotId || !favoritesSet.has(spotId)) return false
@@ -222,9 +223,9 @@ export function subscriptionMatchesSpot(subscription, spot, favoritesSet = new S
   }
 
   if (filters.text) {
-    const needle = filters.text.toLowerCase()
+    const needle = normalizeSearchText(filters.text)
     const haystack = [title, description, ...tags]
-      .map((x) => String(x || '').toLowerCase())
+      .map((x) => normalizeSearchText(x))
       .join(' ')
     if (!haystack.includes(needle)) {
       return false
@@ -240,7 +241,7 @@ export function subscriptionMatchesSpot(subscription, spot, favoritesSet = new S
   }
 
   if (filters.ownerText) {
-    const ownerNeedle = filters.ownerText.toLowerCase()
+    const ownerNeedle = normalizeSearchText(filters.ownerText)
     if (!owner.includes(ownerNeedle)) {
       return false
     }

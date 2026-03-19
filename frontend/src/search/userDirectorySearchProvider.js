@@ -1,4 +1,5 @@
 import { normalizeUser } from '../models/userMapper'
+import { compareText, normalizeSearchText } from '../utils/sanitizers'
 import { BaseSearchProvider } from './baseSearchProvider'
 
 function normalizeUserList(items) {
@@ -19,13 +20,11 @@ function normalizeUserList(items) {
 }
 
 function byDisplayName(a, b) {
-  const left = String(a?.display_name || a?.username || '').toLowerCase()
-  const right = String(b?.display_name || b?.username || '').toLowerCase()
-  return left.localeCompare(right)
+  return compareText(a?.display_name || a?.username, b?.display_name || b?.username)
 }
 
 function matchesUser(user, query) {
-  const q = String(query || '').toLowerCase()
+  const q = normalizeSearchText(query)
   if (!q) return true
 
   const haystack = [
@@ -34,7 +33,7 @@ function matchesUser(user, query) {
     user?.email,
     user?.id,
   ]
-    .map((value) => String(value || '').toLowerCase())
+    .map((value) => normalizeSearchText(value))
     .join(' ')
 
   return haystack.includes(q)
