@@ -3,7 +3,7 @@ name: deploy-development
 on:
   push:
     branches:
-      - develop
+      - dev
 
 concurrency:
   group: development-deploy
