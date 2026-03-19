@@ -91,8 +91,18 @@ const filteredLogEntries = computed(() => {
 
 const logCount = computed(() => logEntries.value.length)
 
+const userMenuRouteNames = new Set([
+  ROUTE_NAMES.SETTINGS,
+  ROUTE_NAMES.PROFILE,
+  ROUTE_NAMES.SUPPORT,
+])
+
+const userMenuRouteActive = computed(() => {
+  return userMenuRouteNames.has(String(route.name || ''))
+})
+
 const userTriggerClass = computed(() => {
-  if (userMenuOpen.value) {
+  if (userMenuOpen.value || userMenuRouteActive.value) {
     return 'btn btn-primary app-top-nav__tool-btn app-top-nav__user-trigger-btn app-top-nav__user-trigger--active'
   }
   return 'btn btn-outline-secondary app-top-nav__tool-btn app-top-nav__user-trigger-btn'
@@ -113,6 +123,8 @@ const show = computed(() => {
 })
 
 const navIconOnly = computed(() => compactBySpace.value)
+
+const showUserNavName = computed(() => !navIconOnly.value || userMenuRouteActive.value)
 
 const userAvatar = computed(() => {
   const raw = String(me.value?.avatar_image || '').trim()
@@ -325,7 +337,7 @@ function notificationCategory(entry) {
             <span class="app-top-nav__user-avatar app-top-nav__user-avatar--empty" v-else>
               <i class="bi bi-person"></i>
             </span>
-            <span class="app-top-nav__user-name" v-if="!navIconOnly">{{ userNavName }}</span>
+            <span class="app-top-nav__user-name" v-if="showUserNavName">{{ userNavName }}</span>
           </span>
         </ActionButton>
       </div>
