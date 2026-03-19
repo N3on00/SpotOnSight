@@ -9,6 +9,7 @@ from fastapi import HTTPException, status
 from pymongo.errors import DuplicateKeyError
 
 from core.admin_setup import is_admin_user
+from core.text import normalize_email, normalize_search_text, normalize_username
 from models.schemas import (
     BlockRef,
     CommentCreateRequest,
@@ -312,17 +313,17 @@ class SocialActions:
         ensure_indexes()
         updates: dict[str, Any] = {}
         if req.username is not None:
-            username = normalize_login(req.username)
-            if not re.fullmatch(r"[a-z0-9_.-]{3,40}", username):
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid username format")
+            username = normalize_username(req.username)
             updates["username"] = username
+            updates["username_key"] = normalize_search_text(username)
+            updates["username_search"] = normalize_search_text(username)
         if req.email is not None:
-            email = normalize_login(req.email)
-            if "@" not in email:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email format")
+            email = normalize_email(req.email)
             updates["email"] = email
+            updates["email_key"] = normalize_email(email)
         if req.display_name is not None:
             updates["display_name"] = as_text(req.display_name)
+            updates["display_name_search"] = normalize_search_text(req.display_name)
         if req.bio is not None:
             updates["bio"] = as_text(req.bio)
         if req.avatar_image is not None:
@@ -351,12 +352,19 @@ class SocialActions:
         return to_user_public(updated)
 
     def search_users(self, query: str, limit: int, current_user: dict[str, Any]) -> list[UserPublic]:
-        text = as_text(query)
+        text = normalize_search_text(query)
         if not text:
             return []
         me_id = viewer_user_id(current_user)
         regex = re.compile(re.escape(text), re.IGNORECASE)
-        users = list(self.repos.users.collection.find({"$or": [{"username": regex}, {"display_name": regex}]}, safe_user_projection()).limit(limit))
+        users = list(self.repos.users.collection.find({
+            "$or": [
+                {"username_search": regex},
+                {"display_name_search": regex},
+                {"username": regex},
+                {"display_name": regex},
+            ]
+        }, safe_user_projection()).limit(limit))
         out: list[UserPublic] = []
         for user_doc in users:
             user_id = serialize_id(user_doc.get("_id"))

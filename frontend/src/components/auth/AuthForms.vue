@@ -1,5 +1,6 @@
 <script setup>
 import { computed, reactive } from 'vue'
+import { isValidUsername } from '../../utils/sanitizers'
 import AuthField from './AuthField.vue'
 import AuthIssues from './AuthIssues.vue'
 import ActionButton from '../common/ActionButton.vue'
@@ -36,7 +37,7 @@ const regChecks = computed(() => {
   const displayName = String(reg.displayName || '').trim()
 
   return {
-    usernameLen: username.length >= 3,
+    usernameValid: isValidUsername(username),
     emailValid: /^\S+@\S+\.\S+$/.test(email),
     passwordLen: password.length >= 8,
     passwordLower: /[a-z]/.test(password),
@@ -51,8 +52,8 @@ const regChecks = computed(() => {
 
 const regIssues = computed(() => {
   const issues = []
-  if (!regChecks.value.usernameLen) {
-    issues.push('Username must be at least 3 characters.')
+  if (!regChecks.value.usernameValid) {
+    issues.push('Username must be 3-40 characters and use letters, numbers, dots, underscores, or hyphens only.')
   }
   if (!String(reg.email || '').trim()) {
     issues.push('Email is required.')
@@ -84,7 +85,7 @@ const regIssues = computed(() => {
 })
 
 const usernameRequirements = computed(() => [
-  { text: 'At least 3 characters', ok: regChecks.value.usernameLen },
+  { text: '3-40 letters, numbers, ., _, or -', ok: regChecks.value.usernameValid },
 ])
 
 const emailRequirements = computed(() => [

@@ -1,6 +1,6 @@
 import { normalizeUser } from '../models/userMapper'
 import { API_ENDPOINTS } from '../api/registry'
-import { asText, uniqueTextList } from '../utils/sanitizers'
+import { asText, compareText, normalizeSearchText, uniqueTextList } from '../utils/sanitizers'
 import { ApiStateService } from './baseService'
 
 function addIfDefined(out, key, value) {
@@ -24,13 +24,11 @@ function dedupeUsers(items) {
 }
 
 function byDisplayName(a, b) {
-  const left = String(a?.display_name || a?.username || '').toLowerCase()
-  const right = String(b?.display_name || b?.username || '').toLowerCase()
-  return left.localeCompare(right)
+  return compareText(a?.display_name || a?.username, b?.display_name || b?.username)
 }
 
 function textIncludesUser(user, query) {
-  const q = String(query || '').trim().toLowerCase()
+  const q = normalizeSearchText(query)
   if (!q) return true
 
   const haystack = [
@@ -39,7 +37,7 @@ function textIncludesUser(user, query) {
     user?.email,
     user?.id,
   ]
-    .map((value) => String(value || '').toLowerCase())
+    .map((value) => normalizeSearchText(value))
     .join(' ')
 
   return haystack.includes(q)

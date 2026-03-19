@@ -1,14 +1,41 @@
+const textCollator = typeof Intl !== 'undefined'
+  ? new Intl.Collator(undefined, { sensitivity: 'base', usage: 'sort' })
+  : null
+
 export function asText(value) {
-  return String(value || '').trim()
+  return String(value || '').normalize('NFC').trim()
 }
 
 export function sanitizeText(value) {
   return asText(value)
 }
 
+export function normalizeSearchText(value) {
+  const text = asText(value)
+  if (!text) return ''
+  return text
+    .normalize('NFD')
+    .replace(/\p{M}+/gu, '')
+    .toLocaleLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+export function compareText(left, right) {
+  const a = asText(left)
+  const b = asText(right)
+  if (textCollator) return textCollator.compare(a, b)
+  return a.localeCompare(b)
+}
+
+export function isValidUsername(value) {
+  const text = asText(value).toLocaleLowerCase()
+  if (text.length < 3 || text.length > 40) return false
+  return /^[\p{L}\p{N}._-]+$/u.test(text)
+}
+
 export function tokenize(text) {
-  return String(text || '')
-    .toLowerCase()
+  return normalizeSearchText(text)
     .split(/[\s,]+/)
     .map((part) => part.trim())
     .filter(Boolean)

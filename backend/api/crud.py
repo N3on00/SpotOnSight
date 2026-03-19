@@ -9,6 +9,8 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Path, Response, sta
 from pydantic import BaseModel, ValidationError
 from pymongo.errors import DuplicateKeyError
 
+from core.text import normalize_email, normalize_login, normalize_search_text, normalize_text, normalize_username
+
 # Generic type for Pydantic models
 T = TypeVar('T', bound=BaseModel)
 
@@ -597,10 +599,10 @@ class AuthSessionRouter(GenericCrudRouter):
 
     @staticmethod
     def _as_text(value: Any) -> str:
-        return str(value or "").strip()
+        return normalize_text(value)
 
     def _normalize_login(self, value: Any) -> str:
-        return self._as_text(value).lower()
+        return normalize_login(value)
 
     def _normalize_social_accounts(self, value: Any) -> dict[str, str]:
         if not isinstance(value, dict):
@@ -643,15 +645,19 @@ class AuthSessionRouter(GenericCrudRouter):
         return self.token_response_model.model_validate(payload)
 
     def _build_auth_user_document(self, req: BaseModel, password_hash: str) -> dict[str, Any]:
-        username = self._normalize_login(getattr(req, "username", ""))
-        email = self._normalize_login(getattr(req, "email", ""))
+        username = normalize_username(getattr(req, "username", ""))
+        email = normalize_email(getattr(req, "email", ""))
         display_name = self._as_text(getattr(req, "display_name", "")) or username
 
         return {
             "username": username,
+            "username_key": normalize_search_text(username),
+            "username_search": normalize_search_text(username),
             "email": email,
+            "email_key": normalize_email(email),
             "password_hash": self._as_text(password_hash),
             "display_name": display_name,
+            "display_name_search": normalize_search_text(display_name),
             "bio": "",
             "avatar_image": "",
             "social_accounts": {},
@@ -663,7 +669,15 @@ class AuthSessionRouter(GenericCrudRouter):
         login = self._normalize_login(username_or_email)
         if not login:
             return None
-        return repository.find_one({"$or": [{"username": login}, {"email": login}]})
+        search_key = normalize_search_text(login)
+        return repository.find_one({
+            "$or": [
+                {"username": login},
+                {"username_key": search_key},
+                {"email": login},
+                {"email_key": normalize_email(login)},
+            ]
+        })
 
     def _create_registered_user(self, repository, req: BaseModel, password_hash: str) -> dict[str, Any]:
         user_doc = self._build_auth_user_document(req, password_hash=password_hash)
