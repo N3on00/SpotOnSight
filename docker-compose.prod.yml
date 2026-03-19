@@ -1,39 +1,29 @@
 services:
   proxy:
-    build:
-      context: .
-      dockerfile: infrastructure/docker/proxy.Dockerfile
+    image: caddy:2-alpine
     depends_on:
       frontend:
         condition: service_healthy
       backend:
         condition: service_healthy
     ports:
-      - "80:8080"
+      - "80:80"
       - "443:443"
     restart: unless-stopped
     read_only: true
     tmpfs:
-      - /var/cache/nginx
-      - /var/run
       - /tmp
     volumes:
-      - /etc/letsencrypt:/etc/letsencrypt:ro
-      - /var/www/certbot:/var/www/certbot:ro
+      - ./infrastructure/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
     cap_drop:
       - ALL
     cap_add:
-      - CHOWN
-      - SETGID
-      - SETUID
+      - NET_BIND_SERVICE
     security_opt:
       - no-new-privileges:true
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/ >/dev/null"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+    pids_limit: 100
     networks:
       - edge
       - app_internal
@@ -59,6 +49,7 @@ services:
       - SETUID
     security_opt:
       - no-new-privileges:true
+    pids_limit: 100
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/ >/dev/null"]
       interval: 30s
@@ -82,6 +73,7 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
+    pids_limit: 100
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()"]
       interval: 30s
@@ -100,6 +92,9 @@ services:
     restart: unless-stopped
     volumes:
       - mongo_prod_data:/data/db
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 200
     healthcheck:
       test: ["CMD-SHELL", "mongosh --quiet mongodb://localhost:27017 --eval \"quit(db.adminCommand('ping').ok ? 0 : 1)\""]
       interval: 30s
@@ -111,6 +106,8 @@ services:
 
 volumes:
   mongo_prod_data:
+  caddy_data:
+  caddy_config:
 
 networks:
   edge:

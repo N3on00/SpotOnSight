@@ -59,29 +59,3 @@ jobs:
       - name: Build frontend
         run: npm run build
         working-directory: frontend
-
-  deploy-production:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs:
-      - backend
-      - frontend
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Deploy production stack over SSH
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.PROD_SSH_HOST }}
-          username: ${{ secrets.PROD_SSH_USER }}
-          key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
-          port: ${{ secrets.PROD_SSH_PORT || '22' }}
-          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT }}
-          script_stop: true
-          script: |
-            set -e
-            cd /opt/spotonsight
-            git fetch origin main --prune
-            git checkout main
-            git pull --ff-only origin main
-            docker compose --env-file .env.production -f docker-compose.prod.yml down
-            docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build --remove-orphans
