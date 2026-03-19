@@ -49,5 +49,5 @@ jobs:
             cd /opt/spotonsight-dev
             chmod +x scripts/deploy-development.sh
             ./scripts/deploy-development.sh
-            curl -fsS --retry 10 --retry-delay 3 --resolve dev.spotonsight.com:443:127.0.0.1 https://dev.spotonsight.com/api/health
+            docker compose -p spotonsight-dev --env-file .env.staging -f docker-compose.staging.yml ps
           '
