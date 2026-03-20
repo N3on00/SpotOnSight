@@ -12,6 +12,8 @@ defineProps({
   ownerLabel: { type: Function, required: true },
   spotDistanceLabel: { type: Function, required: true },
   isFavorite: { type: Function, required: true },
+  canReportSpot: { type: Function, required: true },
+  onReportSpot: { type: Function, required: true },
   onToggleExpanded: { type: Function, required: true },
   onOpenSpot: { type: Function, required: true },
   onToggleFavorite: { type: Function, required: true },
@@ -52,6 +54,8 @@ defineProps({
             :owner-label="ownerLabel(spot)"
             :distance-label="spotDistanceLabel(spot)"
             :interactive="true"
+            :can-report="canReportSpot(spot)"
+            :on-report="onReportSpot"
             @open="onOpenSpot"
           >
             <template #top-actions>

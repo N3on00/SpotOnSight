@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { toImageSource } from '../../models/imageMapper'
 import { useOwnerProfiles } from '../../composables/useOwnerProfiles'
+import ReportContentModal from '../common/ReportContentModal.vue'
 import SpotDetailsModal from '../map/SpotDetailsModal.vue'
 import SpotMiniCard from '../common/SpotMiniCard.vue'
 import ActionButton from '../common/ActionButton.vue'
@@ -23,6 +24,7 @@ const props = defineProps({
   onReportProfile: { type: Function, default: null },
   onGoToSpot: { type: Function, required: true },
   onReportSpot: { type: Function, default: null },
+  onReportComment: { type: Function, default: null },
   onToggleFavorite: { type: Function, required: true },
   onLoadUserProfile: { type: Function, required: true },
   onOpenProfile: { type: Function, required: true },
@@ -39,6 +41,8 @@ const activeTab = ref('created')
 const { ownerLabel, warmOwnerProfiles } = useOwnerProfiles((ownerId) => props.onLoadUserProfile(ownerId))
 const favoritesSet = computed(() => new Set((props.favorites || []).map((id) => String(id))))
 const currentUserId = computed(() => String(props.currentUserId || '').trim())
+const reportProfileOpen = ref(false)
+const reportProfileBusy = ref(false)
 const {
   detailsOpen,
   selectedSpot,
@@ -132,7 +136,21 @@ async function unfollowProfile() {
 
 async function reportProfile() {
   if (typeof props.onReportProfile !== 'function') return
-  await props.onReportProfile(props.profile)
+  reportProfileOpen.value = true
+}
+
+function closeReportProfile() {
+  reportProfileOpen.value = false
+}
+
+async function submitProfileReport(payload) {
+  if (typeof props.onReportProfile !== 'function') return false
+  reportProfileBusy.value = true
+  try {
+    return await props.onReportProfile(props.profile, payload.reason, payload.details)
+  } finally {
+    reportProfileBusy.value = false
+  }
 }
 
 function editOwnProfile() {
@@ -233,6 +251,8 @@ function setCommentDraft(next) {
           :is-favorite="isFavorite(spot)"
           :interactive="true"
           :show-visibility-badge="true"
+          :can-report="String(spot?.owner_id || '').trim() !== currentUserId"
+          :on-report="props.onReportSpot"
           @open="openSpotDetails"
         >
           <template #top-actions>
@@ -277,7 +297,18 @@ function setCommentDraft(next) {
         :on-create-comment="createComment"
         :on-update-comment="updateComment"
         :on-delete-comment="deleteComment"
+        :on-report-comment="props.onReportComment"
         :on-report="props.onReportSpot"
+      />
+
+      <ReportContentModal
+        :open="reportProfileOpen"
+        title="Report account"
+        target-label="this account"
+        :target-description="displayName()"
+        :busy="reportProfileBusy"
+        :on-close="closeReportProfile"
+        :on-submit="submitProfileReport"
       />
     </div>
   </section>

@@ -109,7 +109,8 @@ function formatTimestamp(value) {
 }
 
 .admin-panel {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(248, 246, 240, 0.97));
+  background: linear-gradient(180deg, color-mix(in oklab, var(--app-surface) 96%, white 4%), color-mix(in oklab, var(--app-surface-soft) 92%, rgba(255, 201, 112, 0.08) 8%));
+  border: 1px solid var(--soft-line);
 }
 
 .admin-stack {
@@ -118,10 +119,14 @@ function formatTimestamp(value) {
 }
 
 .admin-item {
-  border: 1px solid rgba(23, 43, 77, 0.1);
+  border: 1px solid var(--soft-line);
   border-radius: 1rem;
   padding: 1rem;
-  background: rgba(255, 255, 255, 0.86);
+  background: color-mix(in oklab, var(--app-surface) 92%, var(--app-surface-soft) 8%);
+}
+
+[data-theme='dark'] .admin-item {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .admin-user-meta {

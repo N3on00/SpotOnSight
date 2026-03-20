@@ -1,7 +1,9 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { useOwnerProfiles } from '../../composables/useOwnerProfiles'
 import ActionButton from '../common/ActionButton.vue'
 import AppTextField from '../common/AppTextField.vue'
+import ReportContentModal from '../common/ReportContentModal.vue'
 
 const props = defineProps({
   comments: { type: Array, default: () => [] },
@@ -13,10 +15,24 @@ const props = defineProps({
   onCreateComment: { type: Function, default: null },
   onUpdateComment: { type: Function, default: null },
   onDeleteComment: { type: Function, default: null },
+  onReportComment: { type: Function, default: null },
+  onLoadUserProfile: { type: Function, default: null },
 })
 
 const editingCommentId = ref('')
 const editingCommentDraft = ref('')
+const reportComment = ref(null)
+const reportBusy = ref(false)
+const { ownerLabel, warmOwnerProfiles } = useOwnerProfiles((userId) => props.onLoadUserProfile(userId))
+
+watch(
+  () => props.comments,
+  (comments) => {
+    if (typeof props.onLoadUserProfile !== 'function') return
+    void warmOwnerProfiles((comments || []).map((comment) => ({ owner_id: comment?.user_id })))
+  },
+  { immediate: true, deep: true },
+)
 
 function updateCommentDraft(next) {
   if (typeof props.onCommentDraftChange !== 'function') return
@@ -67,6 +83,29 @@ function formatCommentDate(value) {
   if (Number.isNaN(date.getTime())) return text
   return date.toLocaleString()
 }
+
+function commentAuthorLabel(comment) {
+  return ownerLabel(comment?.user_id)
+}
+
+function openReportDialog(comment) {
+  if (isCommentOwner(comment) || typeof props.onReportComment !== 'function') return
+  reportComment.value = comment
+}
+
+function closeReportDialog() {
+  reportComment.value = null
+}
+
+async function submitReport(payload) {
+  if (typeof props.onReportComment !== 'function' || !reportComment.value) return false
+  reportBusy.value = true
+  try {
+    return await props.onReportComment(reportComment.value, payload.reason, payload.details)
+  } finally {
+    reportBusy.value = false
+  }
+}
 </script>
 
 <template>
@@ -103,7 +142,7 @@ function formatCommentDate(value) {
       <article v-for="comment in comments" :key="comment.id" class="comment-row">
         <div class="d-flex justify-content-between align-items-start gap-2">
           <div class="small text-secondary">
-            <i class="bi bi-person-circle me-1"></i>{{ comment.user_id || 'unknown' }}
+            <i class="bi bi-person-circle me-1"></i>{{ commentAuthorLabel(comment) }}
           </div>
           <div class="small text-secondary">{{ formatCommentDate(comment.updated_at || comment.created_at) }}</div>
         </div>
@@ -124,11 +163,22 @@ function formatCommentDate(value) {
         </template>
         <p v-else class="mb-2">{{ comment.message }}</p>
 
-        <div class="d-flex gap-2" v-if="isCommentOwner(comment) && editingCommentId !== comment.id">
-          <ActionButton class-name="btn btn-sm btn-outline-secondary" label="Edit" @click="beginEditComment(comment)" />
-          <ActionButton class-name="btn btn-sm btn-outline-danger" label="Delete" :disabled="commentsBusy" @click="removeComment(comment)" />
+        <div class="d-flex flex-wrap gap-2" v-if="editingCommentId !== comment.id">
+          <ActionButton class-name="btn btn-sm btn-outline-secondary" label="Edit" @click="beginEditComment(comment)" v-if="isCommentOwner(comment)" />
+          <ActionButton class-name="btn btn-sm btn-outline-danger" label="Delete" :disabled="commentsBusy" @click="removeComment(comment)" v-if="isCommentOwner(comment)" />
+          <ActionButton class-name="btn btn-sm btn-outline-danger" icon="bi-flag" label="Report" @click="openReportDialog(comment)" v-if="!isCommentOwner(comment) && typeof onReportComment === 'function'" />
         </div>
       </article>
     </div>
   </section>
+
+  <ReportContentModal
+    :open="Boolean(reportComment)"
+    title="Report comment"
+    target-label="this comment"
+    :target-description="reportComment?.message || ''"
+    :busy="reportBusy"
+    :on-close="closeReportDialog"
+    :on-submit="submitReport"
+  />
 </template>

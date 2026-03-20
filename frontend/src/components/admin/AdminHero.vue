@@ -29,6 +29,14 @@ const props = defineProps({
             <span>hidden spots</span>
           </div>
         </div>
+        <div class="admin-hero__visual" aria-hidden="true">
+          <div class="admin-hero__shield">
+            <i class="bi bi-shield-check"></i>
+          </div>
+          <div class="admin-hero__signal admin-hero__signal--one"></div>
+          <div class="admin-hero__signal admin-hero__signal--two"></div>
+          <div class="admin-hero__signal admin-hero__signal--three"></div>
+        </div>
       </div>
     </div>
   </section>
@@ -42,11 +50,17 @@ const props = defineProps({
   color: #f7f4ea;
 }
 
+.admin-hero .card-body {
+  position: relative;
+}
+
 .admin-hero__stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.85rem;
   min-width: min(100%, 26rem);
+  position: relative;
+  z-index: 1;
 }
 
 .admin-hero__stat {
@@ -69,9 +83,75 @@ const props = defineProps({
   margin-top: 0.35rem;
 }
 
+.admin-hero__visual {
+  position: absolute;
+  top: 1.3rem;
+  right: 1.5rem;
+  width: 11rem;
+  height: 11rem;
+  pointer-events: none;
+  opacity: 0.95;
+}
+
+.admin-hero__shield {
+  position: absolute;
+  inset: 1.8rem;
+  display: grid;
+  place-items: center;
+  border-radius: 2rem;
+  background: linear-gradient(180deg, rgba(255, 215, 128, 0.3), rgba(255, 255, 255, 0.08));
+  border: 1px solid rgba(255, 226, 158, 0.34);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(6px);
+}
+
+.admin-hero__shield i {
+  font-size: 2.2rem;
+  color: #ffe09a;
+}
+
+.admin-hero__signal {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(255, 226, 158, 0.22);
+  border-radius: 2.6rem;
+}
+
+.admin-hero__signal--one {
+  inset: 0.4rem;
+}
+
+.admin-hero__signal--two {
+  inset: 1.2rem;
+}
+
+.admin-hero__signal--three {
+  inset: 2rem;
+}
+
+[data-theme='dark'] .admin-hero {
+  background:
+    radial-gradient(circle at top left, rgba(255, 193, 7, 0.16), transparent 38%),
+    linear-gradient(135deg, rgba(12, 21, 31, 0.98), rgba(24, 39, 56, 0.98));
+}
+
+[data-theme='dark'] .admin-hero__shield {
+  background: linear-gradient(180deg, rgba(255, 194, 87, 0.18), rgba(88, 116, 150, 0.12));
+  border-color: rgba(255, 226, 158, 0.26);
+}
+
 @media (max-width: 767px) {
   .admin-hero__stats {
     grid-template-columns: 1fr;
+  }
+
+  .admin-hero__visual {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: 100%;
+    height: 7rem;
+    margin-top: 0.4rem;
   }
 }
 </style>

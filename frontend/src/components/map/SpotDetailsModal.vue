@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import ActionButton from '../common/ActionButton.vue'
 import AppTextField from '../common/AppTextField.vue'
+import ReportContentModal from '../common/ReportContentModal.vue'
 import SpotCommentThread from './SpotCommentThread.vue'
 import SpotImageCarousel from './SpotImageCarousel.vue'
 import SpotOwnerSummary from './SpotOwnerSummary.vue'
@@ -35,14 +36,18 @@ const props = defineProps({
   onCreateComment: { type: Function, default: null },
   onUpdateComment: { type: Function, default: null },
   onDeleteComment: { type: Function, default: null },
+  onReportComment: { type: Function, default: null },
 })
 
 const shareText = ref('')
+const reportOpen = ref(false)
+const reportBusy = ref(false)
 
 watch(
   () => props.spot,
   () => {
     shareText.value = ''
+    reportOpen.value = false
   },
 )
 
@@ -78,7 +83,21 @@ function goToSpot() {
 
 function reportSpot() {
   if (!props.canReport || typeof props.onReport !== 'function') return
-  props.onReport(props.spot)
+  reportOpen.value = true
+}
+
+function closeReportDialog() {
+  reportOpen.value = false
+}
+
+async function submitReport(payload) {
+  if (!props.canReport || typeof props.onReport !== 'function') return false
+  reportBusy.value = true
+  try {
+    return await props.onReport(props.spot, payload.reason, payload.details)
+  } finally {
+    reportBusy.value = false
+  }
 }
 
 </script>
@@ -142,6 +161,8 @@ function reportSpot() {
         :on-create-comment="onCreateComment"
         :on-update-comment="onUpdateComment"
         :on-delete-comment="onDeleteComment"
+        :on-report-comment="onReportComment"
+        :on-load-user-profile="onLoadUserProfile"
       />
 
       <footer class="modal__footer">
@@ -174,6 +195,16 @@ function reportSpot() {
           <ActionButton class-name="btn btn-danger" label="Delete" v-if="canDelete" @click="deleteSpot" />
         </div>
       </footer>
+
+      <ReportContentModal
+        :open="reportOpen"
+        title="Report spot"
+        target-label="this spot"
+        :target-description="spot?.title || 'Untitled spot'"
+        :busy="reportBusy"
+        :on-close="closeReportDialog"
+        :on-submit="submitReport"
+      />
 
       </div>
     </div>

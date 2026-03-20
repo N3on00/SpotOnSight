@@ -27,18 +27,18 @@ describe('useOwnerProfiles', () => {
     expect(ownerSearchText({ owner_id: 'user-2' })).toContain('user-2@example.test')
   })
 
-  it('falls back to owner id when no profile exists yet', () => {
+  it('falls back to a safe generic creator label when no profile exists yet', () => {
     const { ownerLabel } = useOwnerProfiles(async () => null)
-    expect(ownerLabel({ owner_id: '' })).toBe('unknown creator')
-    expect(ownerLabel({ owner_id: 'abc123' })).toBe('id: abc123')
+    expect(ownerLabel({ owner_id: '' })).toBe('creator unavailable')
+    expect(ownerLabel({ owner_id: 'abc123' })).toBe('creator unavailable')
   })
 
-  it('swallows loader errors and keeps owner fallback labels', async () => {
+  it('swallows loader errors and keeps safe fallback labels', async () => {
     const { ownerLabel, warmOwnerProfiles } = useOwnerProfiles(async () => {
       throw new Error('profile load failed')
     })
 
     await expect(warmOwnerProfiles([{ owner_id: 'u-1' }])).resolves.toBeUndefined()
-    expect(ownerLabel({ owner_id: 'u-1' })).toBe('id: u-1')
+    expect(ownerLabel({ owner_id: 'u-1' })).toBe('creator unavailable')
   })
 })

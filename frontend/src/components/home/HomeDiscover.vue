@@ -14,6 +14,7 @@ const props = defineProps({
   onRefresh: { type: Function, required: true },
   onGoToSpot: { type: Function, required: true },
   onReportSpot: { type: Function, default: null },
+  onReportComment: { type: Function, default: null },
   onToggleFavorite: { type: Function, required: true },
   onLoadUserProfile: { type: Function, required: true },
   onNotify: { type: Function, required: true },
@@ -117,6 +118,8 @@ function setCommentDraft(next) {
           :owner-label="ownerLabel(spot)"
           :is-favorite="isFavorite(spot)"
           :interactive="true"
+          :can-report="String(spot?.owner_id || '').trim() !== currentUserId"
+          :on-report="onReportSpot"
           @open="openSpotDetails"
         >
           <template #top-actions>
@@ -164,6 +167,7 @@ function setCommentDraft(next) {
         :on-create-comment="createComment"
         :on-update-comment="updateComment"
         :on-delete-comment="deleteComment"
+        :on-report-comment="onReportComment"
         :on-report="onReportSpot"
       />
     </div>

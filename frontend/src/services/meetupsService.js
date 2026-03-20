@@ -11,6 +11,7 @@ function normalizeMeetup(item) {
     description: asText(row.description),
     starts_at: asText(row.starts_at),
     invite_user_ids: uniqueTextList(Array.isArray(row.invite_user_ids) ? row.invite_user_ids : []),
+    moderation_status: asText(row.moderation_status || 'visible') || 'visible',
     created_at: asText(row.created_at),
     updated_at: asText(row.updated_at),
   }

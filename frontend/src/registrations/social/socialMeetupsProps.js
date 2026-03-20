@@ -1,7 +1,9 @@
-import { controllerLastError, runBooleanAction, runTask } from '../uiShared'
+import { controllerLastError, createModerationActions, runBooleanAction, runTask } from '../uiShared'
 import { loadMeetupInvitesSafe, loadMeetupsSafe, meetupsController } from './meetupsControllerAccess'
 
 export function buildSocialMeetupsProps({ app }) {
+  const moderation = createModerationActions(app)
+
   async function refreshMeetups() {
     await runTask(app, {
       loadingKey: 'socialMeetups',
@@ -25,6 +27,9 @@ export function buildSocialMeetupsProps({ app }) {
     people: [...(app.state.social.followers || []), ...(app.state.social.following || [])],
     currentUserId: app.state.session.user?.id || '',
     busy: app.state.loading.socialMeetups || app.state.loading.socialMeetupMutate,
+    onLoadUserProfile: async (userId) => app.controller('users').profile(userId),
+    onReportMeetup: moderation.onReportMeetup,
+    onReportComment: moderation.onReportMeetupComment,
     onRefresh: refreshMeetups,
     onCreateMeetup: async (payload) => {
       const ctrl = meetupsController(app)

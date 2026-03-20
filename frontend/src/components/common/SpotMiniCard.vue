@@ -2,6 +2,7 @@
 import { computed, ref, useSlots } from 'vue'
 import { firstImageSource } from '../../models/imageMapper'
 import ActionButton from './ActionButton.vue'
+import ReportContentModal from './ReportContentModal.vue'
 
 const props = defineProps({
   spot: { type: Object, required: true },
@@ -14,16 +15,24 @@ const props = defineProps({
   showGoTo: { type: Boolean, default: false },
   maxTags: { type: Number, default: 4 },
   descriptionMaxLength: { type: Number, default: 120 },
+  canReport: { type: Boolean, default: false },
+  onReport: { type: Function, default: null },
 })
 
 const emit = defineEmits(['open', 'go-to'])
 const slots = useSlots()
 const hoverPulseActive = ref(false)
+const reportOpen = ref(false)
+const reportBusy = ref(false)
 
 const preview = computed(() => firstImageSource(props.spot?.images))
 
 const hasTopRail = computed(() => {
   return Boolean(slots['top-actions'] || props.showFavoriteBadge || props.showVisibilityBadge)
+})
+
+const hasActions = computed(() => {
+  return Boolean(slots.actions || props.showGoTo || props.canReport)
 })
 
 const normalizedDescriptionLimit = computed(() => {
@@ -83,6 +92,26 @@ function triggerHoverPulse() {
 function clearHoverPulse() {
   hoverPulseActive.value = false
 }
+
+function openReportDialog(event) {
+  event?.stopPropagation?.()
+  if (!props.canReport || typeof props.onReport !== 'function') return
+  reportOpen.value = true
+}
+
+function closeReportDialog() {
+  reportOpen.value = false
+}
+
+async function submitReport(payload) {
+  if (typeof props.onReport !== 'function') return false
+  reportBusy.value = true
+  try {
+    return await props.onReport(props.spot, payload.reason, payload.details)
+  } finally {
+    reportBusy.value = false
+  }
+}
 </script>
 
 <template>
@@ -123,13 +152,20 @@ function clearHoverPulse() {
           <span class="tag" v-for="tag in visibleTags" :key="`${spot?.id || spot?.title || 'spot'}-${tag}`">{{ tag }}</span>
         </div>
 
-        <div class="spot-card-mini__actions" v-if="$slots.actions || showGoTo">
+        <div class="spot-card-mini__actions" v-if="hasActions">
           <ActionButton
             v-if="showGoTo"
             class-name="btn btn-sm btn-outline-primary"
             icon="bi-signpost-2"
             label="Go to"
             @click.stop="goToSpot"
+          />
+          <ActionButton
+            v-if="canReport"
+            class-name="btn btn-sm btn-outline-danger"
+            icon="bi-flag"
+            label="Report"
+            @click.stop="openReportDialog"
           />
           <slot name="actions" :spot="spot" />
         </div>
@@ -145,4 +181,14 @@ function clearHoverPulse() {
       </div>
     </div>
   </article>
+
+  <ReportContentModal
+    :open="reportOpen"
+    title="Report spot"
+    target-label="this spot"
+    :target-description="spot?.title || 'Untitled spot'"
+    :busy="reportBusy"
+    :on-close="closeReportDialog"
+    :on-submit="submitReport"
+  />
 </template>

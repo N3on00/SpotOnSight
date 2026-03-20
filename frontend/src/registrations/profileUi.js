@@ -144,6 +144,7 @@ profileScreen.main({
     },
     onToggleFavorite: createSpotFavoriteAction(app),
     onReportSpot: moderation.onReportSpot,
+    onReportComment: moderation.onReportComment,
     onReportProfile: moderation.onReportUser,
     onLoadUserProfile: async (userId) => {
       return app.controller('users').profile(userId)

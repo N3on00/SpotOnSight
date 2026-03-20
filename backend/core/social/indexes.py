@@ -40,6 +40,7 @@ def ensure_indexes() -> None:
         r.comments.collection.create_index([("spot_id", ASCENDING), ("moderation_status", ASCENDING), ("created_at", ASCENDING)])
         r.meetups.collection.create_index([("host_user_id", ASCENDING), ("starts_at", ASCENDING)])
         r.meetups.collection.create_index([("starts_at", ASCENDING)])
+        r.meetups.collection.create_index([("moderation_status", ASCENDING), ("starts_at", ASCENDING)])
         r.meetup_invites.collection.create_index([("meetup_id", ASCENDING), ("user_id", ASCENDING)], unique=True)
         r.meetup_invites.collection.create_index([("user_id", ASCENDING), ("status", ASCENDING), ("created_at", ASCENDING)])
         r.meetup_comments.collection.create_index([("meetup_id", ASCENDING), ("created_at", ASCENDING)])

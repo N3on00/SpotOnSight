@@ -4,7 +4,7 @@ import { asText, uniqueTextList } from '../utils/sanitizers'
 function normalizeOwnerIds(spots) {
   return uniqueTextList(
     (Array.isArray(spots) ? spots : [])
-      .map((spot) => asText(spot?.owner_id)),
+      .map((spot) => asText(typeof spot === 'string' ? spot : spot?.owner_id)),
   )
 }
 
@@ -17,8 +17,8 @@ export function useOwnerProfiles(loadUserProfile) {
   const ownerLoading = reactive({})
   const pendingLoads = new Map()
 
-  function ownerIdOf(spot) {
-    return asText(spot?.owner_id)
+  function ownerIdOf(spotOrOwnerId) {
+    return asText(typeof spotOrOwnerId === 'string' ? spotOrOwnerId : spotOrOwnerId?.owner_id)
   }
 
   function ownerProfileOf(spotOrOwnerId) {
@@ -39,7 +39,7 @@ export function useOwnerProfiles(loadUserProfile) {
 
   function ownerLabel(spot) {
     const ownerId = ownerIdOf(spot)
-    if (!ownerId) return 'unknown creator'
+    if (!ownerId) return 'creator unavailable'
 
     if (ownerLoading[ownerId]) {
       return 'loading creator...'
@@ -56,7 +56,7 @@ export function useOwnerProfiles(loadUserProfile) {
       return displayName
     }
 
-    return `id: ${ownerId}`
+    return 'creator unavailable'
   }
 
   async function loadOwnerProfile(ownerId) {

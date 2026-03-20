@@ -116,6 +116,9 @@ class SocialActions:
         if normalized == "comment":
             target = self.comment_or_404(target_id)
             return target, as_text(target.get("user_id"))
+        if normalized == "meetup":
+            target = self.meetup_or_404(target_id)
+            return target, as_text(target.get("host_user_id"))
         if normalized == "meetup_comment":
             if not ObjectId.is_valid(target_id):
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid comment ID")
@@ -264,6 +267,8 @@ class SocialActions:
             current_user = self.repos.users.find_one({"_id": ObjectId(user_id)})
             if current_user and self.is_admin(current_user):
                 return True
+        if self._content_status(meetup) == "hidden":
+            return False
         host_id = as_text(meetup.get("host_user_id"))
         if host_id and host_id == user_id:
             return True
@@ -604,6 +609,10 @@ class SocialActions:
             self.comment_or_404(target_id)
             self.repos.comments.update_fields({"_id": ObjectId(target_id)}, {"moderation_status": moderation_status, "updated_at": self._now()})
             return
+        if normalized == "meetup":
+            existing = self.meetup_or_404(target_id)
+            self.repos.meetups.update_fields({"_id": existing.get("_id")}, {"moderation_status": moderation_status, "updated_at": self._now()})
+            return
         if normalized == "meetup_comment":
             if not ObjectId.is_valid(target_id):
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid comment ID")
@@ -633,7 +642,7 @@ class SocialActions:
         timeout_message = ""
 
         if req.status == "upheld":
-            if action_taken == "hide_content" and target_type in {"spot", "comment", "meetup_comment"}:
+            if action_taken == "hide_content" and target_type in {"spot", "comment", "meetup", "meetup_comment"}:
                 self._set_target_content_status(target_type, target_id, "hidden")
             if action_taken == "ban_user":
                 if not ObjectId.is_valid(target_owner_user_id):
@@ -646,7 +655,7 @@ class SocialActions:
                         "posting_timeout_until": None,
                     },
                 )
-            if target_type in {"spot", "comment", "meetup_comment"} and ObjectId.is_valid(target_owner_user_id):
+            if target_type in {"spot", "comment", "meetup", "meetup_comment"} and ObjectId.is_valid(target_owner_user_id):
                 _weight, timeout_until, timeout_message = self._apply_strike(
                     user_id=target_owner_user_id,
                     target_type=target_type,
@@ -776,7 +785,7 @@ class SocialActions:
         me_id = self.me_id(current_user)
         invite_user_ids = [uid for uid in dict.fromkeys(req.invite_user_ids) if ObjectId.is_valid(uid)]
         now = datetime.now(UTC)
-        doc = {"host_user_id": me_id, "title": as_text(req.title), "description": as_text(req.description), "starts_at": req.starts_at, "invite_user_ids": invite_user_ids, "created_at": now, "updated_at": now}
+        doc = {"host_user_id": me_id, "title": as_text(req.title), "description": as_text(req.description), "starts_at": req.starts_at, "invite_user_ids": invite_user_ids, "moderation_status": "visible", "created_at": now, "updated_at": now}
         inserted_id = self.repos.meetups.insert_one(doc)
         meetup_id = serialize_id(ObjectId(inserted_id))
         self.sync_meetup_invites(meetup_id, me_id, invite_user_ids)
@@ -812,6 +821,7 @@ class SocialActions:
             all_rows = [row for row in all_rows if not is_upcoming(row)]
         else:
             all_rows = [row for row in all_rows if is_upcoming(row)]
+        all_rows = [row for row in all_rows if self.can_access_meetup(row, me_id)]
         all_rows.sort(key=lambda row: row.get("starts_at") or now)
         return [to_meetup_public(row) for row in all_rows]
 

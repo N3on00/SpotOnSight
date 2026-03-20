@@ -1,7 +1,9 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useOwnerProfiles } from '../../composables/useOwnerProfiles'
 import ActionButton from '../common/ActionButton.vue'
 import AppTextField from '../common/AppTextField.vue'
+import ReportContentModal from '../common/ReportContentModal.vue'
 
 const props = defineProps({
   meetups: { type: Array, default: () => [] },
@@ -9,6 +11,9 @@ const props = defineProps({
   people: { type: Array, default: () => [] },
   busy: { type: Boolean, default: false },
   currentUserId: { type: String, default: '' },
+  onLoadUserProfile: { type: Function, required: true },
+  onReportMeetup: { type: Function, default: null },
+  onReportComment: { type: Function, default: null },
   onRefresh: { type: Function, required: true },
   onCreateMeetup: { type: Function, required: true },
   onDeleteMeetup: { type: Function, required: true },
@@ -26,6 +31,9 @@ const draft = ref({
 const detailMeetupId = ref('')
 const commentsByMeetup = ref({})
 const commentDraft = ref('')
+const reportTarget = ref(null)
+const reportBusy = ref(false)
+const { ownerLabel, warmOwnerProfiles } = useOwnerProfiles((userId) => props.onLoadUserProfile(userId))
 
 const sortedMeetups = computed(() => {
   return [...(Array.isArray(props.meetups) ? props.meetups : [])]
@@ -50,6 +58,18 @@ const inviteStatusByMeetup = computed(() => {
   }
   return out
 })
+
+watch(
+  () => [props.meetups, commentsByMeetup.value],
+  ([meetups, commentsById]) => {
+    const commentRows = Object.values(commentsById || {}).flat()
+    void warmOwnerProfiles([
+      ...(Array.isArray(meetups) ? meetups.map((meetup) => ({ owner_id: meetup?.host_user_id })) : []),
+      ...commentRows.map((comment) => ({ owner_id: comment?.user_id })),
+    ])
+  },
+  { immediate: true, deep: true },
+)
 
 function toggleInvite(userId) {
   const id = String(userId || '').trim()
@@ -92,6 +112,14 @@ function canManageMeetup(meetup) {
   return String(meetup?.host_user_id || '').trim() === String(props.currentUserId || '').trim()
 }
 
+function meetupHostLabel(meetup) {
+  return ownerLabel(meetup?.host_user_id)
+}
+
+function commentAuthorLabel(comment) {
+  return ownerLabel(comment?.user_id)
+}
+
 async function openDetails(meetup) {
   const meetupId = String(meetup?.id || '').trim()
   if (!meetupId) return
@@ -123,6 +151,45 @@ async function submitComment() {
   commentsByMeetup.value = {
     ...commentsByMeetup.value,
     [meetupId]: [created, ...next],
+  }
+}
+
+function openMeetupReport(meetup) {
+  if (canManageMeetup(meetup) || typeof props.onReportMeetup !== 'function') return
+  reportTarget.value = {
+    kind: 'meetup',
+    row: meetup,
+    title: 'Report meetup',
+    label: 'this meetup',
+    description: String(meetup?.title || '').trim() || 'Meetup details',
+  }
+}
+
+function openCommentReport(comment) {
+  if (String(comment?.user_id || '').trim() === String(props.currentUserId || '').trim() || typeof props.onReportComment !== 'function') return
+  reportTarget.value = {
+    kind: 'comment',
+    row: comment,
+    title: 'Report meetup comment',
+    label: 'this meetup comment',
+    description: String(comment?.message || '').trim(),
+  }
+}
+
+function closeReportDialog() {
+  reportTarget.value = null
+}
+
+async function submitReport(payload) {
+  if (!reportTarget.value) return false
+  reportBusy.value = true
+  try {
+    if (reportTarget.value.kind === 'meetup') {
+      return await props.onReportMeetup(reportTarget.value.row, payload.reason, payload.details)
+    }
+    return await props.onReportComment(reportTarget.value.row, payload.reason, payload.details)
+  } finally {
+    reportBusy.value = false
   }
 }
 </script>
@@ -164,6 +231,7 @@ async function submitComment() {
         <article class="meetup-row" v-for="meetup in sortedMeetups" :key="`meetup-${meetup.id}`">
           <div>
             <div class="fw-semibold">{{ meetup.title }}</div>
+            <div class="small text-secondary"><i class="bi bi-person-circle me-1"></i>{{ meetupHostLabel(meetup) }}</div>
             <div class="small text-secondary">{{ meetup.starts_at }}</div>
             <div class="small text-secondary">{{ meetup.description || 'No description' }}</div>
             <div class="small text-secondary" v-if="inviteStatus(meetup.id)">
@@ -172,6 +240,13 @@ async function submitComment() {
           </div>
           <div class="d-flex flex-wrap gap-2 justify-content-end">
             <ActionButton class-name="btn btn-sm btn-outline-secondary" label="Details" @click="openDetails(meetup)" />
+            <ActionButton
+              v-if="!canManageMeetup(meetup) && typeof onReportMeetup === 'function'"
+              class-name="btn btn-sm btn-outline-danger"
+              icon="bi-flag"
+              label="Report"
+              @click="openMeetupReport(meetup)"
+            />
             <ActionButton
               v-if="!canManageMeetup(meetup)"
               class-name="btn btn-sm btn-outline-success"
@@ -216,11 +291,30 @@ async function submitComment() {
           </div>
           <div class="comments-list">
             <article class="comment-row" v-for="comment in (commentsByMeetup[detailMeetupId] || [])" :key="`meetup-comment-${comment.id}`">
-              <div class="small text-secondary">{{ peopleById.get(comment.user_id)?.display_name || comment.user_id }}</div>
+              <div class="d-flex flex-wrap justify-content-between gap-2 align-items-start">
+                <div class="small text-secondary">{{ peopleById.get(comment.user_id)?.display_name || commentAuthorLabel(comment) }}</div>
+                <ActionButton
+                  v-if="String(comment?.user_id || '').trim() !== String(currentUserId || '').trim() && typeof onReportComment === 'function'"
+                  class-name="btn btn-sm btn-outline-danger"
+                  icon="bi-flag"
+                  label="Report"
+                  @click="openCommentReport(comment)"
+                />
+              </div>
               <p class="mb-0">{{ comment.message }}</p>
             </article>
           </div>
         </section>
+
+        <ReportContentModal
+          :open="Boolean(reportTarget)"
+          :title="reportTarget?.title || 'Report content'"
+          :target-label="reportTarget?.label || 'this content'"
+          :target-description="reportTarget?.description || ''"
+          :busy="reportBusy"
+          :on-close="closeReportDialog"
+          :on-submit="submitReport"
+        />
       </div>
     </div>
   </Teleport>

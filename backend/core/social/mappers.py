@@ -79,6 +79,7 @@ def to_meetup_public(doc: dict[str, Any]) -> MeetupPublic:
         description=as_text(doc.get("description")),
         starts_at=starts_at,
         invite_user_ids=normalize_id_list(doc.get("invite_user_ids")),
+        moderation_status=as_text(doc.get("moderation_status") or "visible").lower() if as_text(doc.get("moderation_status") or "visible").lower() in {"visible", "flagged", "hidden"} else "visible",
         created_at=created_at,
         updated_at=updated_at,
     )

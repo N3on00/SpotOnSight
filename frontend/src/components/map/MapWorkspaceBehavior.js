@@ -154,36 +154,40 @@ export class MapWorkspaceBehavior extends ComponentBehavior {
     }
   }
 
-  async reportSpot(spotId) {
+  async reportContent(targetType, targetId, reason = 'other', details = '') {
     try {
       const result = await this.app.controller('social').reportContent(
-        'spot',
-        spotId,
-        'other',
-        'Submitted from the map spot details view for admin moderation review.',
+        targetType,
+        targetId,
+        reason,
+        details,
       )
       if (!result) {
         this.handleError({
           title: 'Report failed',
-          message: 'Could not submit this spot report.',
+          message: 'Could not submit this report.',
           details: controllerError(this.app, 'social'),
         })
         return false
       }
       this.notify({
         level: 'warning',
-        title: 'Spot reported',
+        title: 'Report submitted',
         message: 'Admins have been notified and will review this content.',
       })
       return true
     } catch (error) {
       this.handleError({
         title: 'Report failed',
-        message: 'Could not submit this spot report.',
+        message: 'Could not submit this report.',
         error,
       })
       return false
     }
+  }
+
+  async reportSpot(spotId, reason = 'other', details = '') {
+    return this.reportContent('spot', spotId, reason, details)
   }
 
   async searchUsers(query, limit = 20) {

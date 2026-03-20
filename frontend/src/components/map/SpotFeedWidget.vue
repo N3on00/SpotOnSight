@@ -11,6 +11,8 @@ const props = defineProps({
   filters: { type: Object, default: () => ({}) },
   activeScope: { type: String, default: SPOT_FEED_SCOPES.ALL },
   nearRadiusKm: { type: Number, default: 25 },
+  currentUserId: { type: String, default: '' },
+  onReportSpot: { type: Function, default: null },
 })
 
 const emit = defineEmits([
@@ -201,6 +203,8 @@ function emitVisitOwner(spot) {
             :spot="spot"
             :interactive="true"
             show-go-to
+            :can-report="String(spot?.owner_id || '').trim() !== String(currentUserId || '').trim() && typeof onReportSpot === 'function'"
+            :on-report="onReportSpot"
             @open="emitOpenSpot(spot)"
             @go-to="emitGoToSpot(spot)"
             @owner-click="emitVisitOwner(spot)"
