@@ -59,6 +59,7 @@ from .indexes import ensure_indexes
 from .mappers import to_meetup_public, to_spot_public, to_support_ticket_public, to_user_public
 from .mappers import to_moderation_notification_public, to_moderation_report_public, to_moderation_user_public
 from .policies import can_view_private_user, can_view_spot, is_blocked_pair, is_following
+from .spot_workflows import SpotWorkflowExecutor
 
 
 def normalize_invite_status(value: Any) -> str:
@@ -71,6 +72,7 @@ def normalize_invite_status(value: Any) -> str:
 class SocialActions:
     def __init__(self, repos) -> None:
         self.repos = repos
+        self.spot_workflows = SpotWorkflowExecutor(self)
 
     @staticmethod
     def _now() -> datetime:
@@ -381,62 +383,19 @@ class SocialActions:
         return to_user_public(target)
 
     def list_visible_spots(self, current_user: dict[str, Any]) -> list[SpotPublic]:
-        me_id = self.me_id(current_user)
-        docs = list(self.repos.spots.collection.find({}).sort("created_at", -1).limit(1500))
-        if self.is_admin(current_user):
-            return [to_spot_public(doc) for doc in docs]
-        return [to_spot_public(doc) for doc in docs if self._content_status(doc) != "hidden" and can_view_spot(self.repos, me_id, doc)]
+        return self.spot_workflows.list_visible_spots(current_user)
 
     def create_spot(self, req: SpotUpsertRequest, current_user: dict[str, Any]) -> SpotPublic:
-        self.ensure_can_post(current_user)
-        me_id = self.me_id(current_user)
-        doc = build_spot_doc(req, owner_id=me_id)
-        doc["moderation_status"] = "visible"
-        inserted_id = self.repos.spots.insert_one(doc)
-        created = self.repos.spots.find_one({"_id": ObjectId(inserted_id)})
-        if not created:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Spot creation failed")
-        return to_spot_public(created)
+        return self.spot_workflows.create_spot(req, current_user)
 
     def update_spot(self, spot_id: str, req: SpotUpsertRequest, current_user: dict[str, Any]) -> SpotPublic:
-        self.ensure_can_post(current_user)
-        existing = self.spot_or_404(spot_id)
-        me_id = self.me_id(current_user)
-        owner_id = spot_owner_id(existing)
-        if owner_id and owner_id != me_id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only owner can edit this spot")
-        spot_key = existing.get("_id")
-        next_doc = build_spot_doc(req, owner_id=owner_id or me_id, created_at=existing.get("created_at"))
-        next_doc["moderation_status"] = self._content_status(existing)
-        self.repos.spots.update_fields({"_id": spot_key}, next_doc)
-        updated = self.repos.spots.find_one({"_id": spot_key})
-        if not updated:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Spot update failed")
-        return to_spot_public(updated)
+        return self.spot_workflows.update_spot(spot_id, req, current_user)
 
     def delete_spot(self, spot_id: str, current_user: dict[str, Any]) -> dict[str, bool]:
-        existing = self.spot_or_404(spot_id)
-        me_id = self.me_id(current_user)
-        owner_id = spot_owner_id(existing)
-        if owner_id and owner_id != me_id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only owner can delete this spot")
-        spot_key = existing.get("_id")
-        spot_keys = [key for key in dict.fromkeys([as_text(spot_id), as_text(spot_key)]) if key]
-        self.repos.spots.collection.delete_one({"_id": spot_key})
-        self.repos.favorites.delete_many({"spot_id": {"$in": spot_keys}})
-        self.repos.shares.delete_many({"spot_id": {"$in": spot_keys}})
-        self.repos.comments.delete_many({"spot_id": {"$in": spot_keys}})
-        return {"ok": True}
+        return self.spot_workflows.delete_spot(spot_id, current_user)
 
     def user_spots(self, user_id: str, current_user: dict[str, Any]) -> list[SpotPublic]:
-        target_id, _target = self.user_or_404(user_id)
-        me_id = self.me_id(current_user)
-        if not self.is_admin(current_user) and me_id != target_id and is_blocked_pair(self.repos, me_id, target_id):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-        docs = list(self.repos.spots.collection.find({"owner_id": target_id}).sort("created_at", -1).limit(1200))
-        if self.is_admin(current_user):
-            return [to_spot_public(doc) for doc in docs]
-        return [to_spot_public(doc) for doc in docs if self._content_status(doc) != "hidden" and can_view_spot(self.repos, me_id, doc)]
+        return self.spot_workflows.user_spots(user_id, current_user)
 
     def add_favorite(self, spot_id: str, current_user: dict[str, Any]) -> dict[str, bool]:
         spot = self.spot_or_404(spot_id)

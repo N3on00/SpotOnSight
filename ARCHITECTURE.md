@@ -32,4 +32,15 @@ SpotOnSight follows a modular product structure built around a Vue frontend, a F
 - Repositories encapsulate MongoDB queries and indexes
 - Mobile wraps the web app instead of duplicating product logic
 
+## Target Runtime Direction
+
+SpotOnSight is moving toward a reusable actor model where business data decides orchestration.
+
+- actors should be generic capability units, not feature-specific scripts
+- workflow definitions should declare which actors run and in what order
+- policies should hold business rules and permission checks
+- execution context should carry request, principal, entities, and emitted facts through the pipeline
+
+Detailed UML and orchestration guidance live in `docs/architecture/actor-runtime.md`.
+
 Additional architecture notes live in `docs/architecture/`.
