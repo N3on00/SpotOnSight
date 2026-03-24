@@ -116,9 +116,9 @@ docker compose --env-file .env.staging -f docker-compose.prod.yml up --build
 
 ## CI/CD Secrets
 
-- Add `PROD_SSH_HOST`, `PROD_SSH_USER`, and `PROD_SSH_PRIVATE_KEY` in GitHub Actions secrets.
-- Optionally add `PROD_SSH_PORT` if the server does not use port `22`.
-- Add `PROD_SSH_FINGERPRINT` to pin the server host key.
+- Add `VPS_HOST` and `VPS_PASSWORD` in GitHub Actions secrets.
+- Deploy workflows now connect as the fixed SSH user `deploy`.
+- The host key is learned during the workflow run with `ssh-keyscan` before connecting.
 - Keep `/opt/spotonsight/.env.production` on the server and out of the repository.
 - Ensure the server user can run `git` and `docker compose` in `/opt/spotonsight`.
 

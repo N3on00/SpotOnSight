@@ -12,15 +12,13 @@ concurrency:
 jobs:
   deploy-production:
     runs-on: ubuntu-latest
+    env:
+      VPS_USER: deploy
+      SSHPASS: ${{ secrets.VPS_PASSWORD }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-
-      - name: Start SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
 
       - name: Add VPS to known_hosts
         run: |
@@ -28,20 +26,20 @@ jobs:
           ssh-keygen -R "${{ secrets.VPS_HOST }}" || true
           ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
 
-      - name: Install rsync
+      - name: Install rsync and sshpass
         run: |
           sudo apt-get update
-          sudo apt-get install -y rsync
+          sudo apt-get install -y rsync sshpass
 
       - name: Deploy to VPS
         run: |
-          rsync -az --delete \
+          rsync -az --delete --rsh="sshpass -e ssh" \
             --exclude '.git' \
             --exclude '.github' \
             --exclude '.env.production' \
-            ./ "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/spotonsight/"
+            ./ "${VPS_USER}@${{ secrets.VPS_HOST }}:/opt/spotonsight/"
 
-          ssh "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" '
+          sshpass -e ssh "${VPS_USER}@${{ secrets.VPS_HOST }}" '
             set -eu
             cd /opt/spotonsight
             chmod +x scripts/deploy-production.sh

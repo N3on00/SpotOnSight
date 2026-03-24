@@ -35,11 +35,10 @@ The CI workflow redeploys automatically on every push to `main` after tests and 
 
 Required GitHub repository secrets:
 
-- `PROD_SSH_HOST`
-- `PROD_SSH_USER`
-- `PROD_SSH_PRIVATE_KEY`
-- `PROD_SSH_PORT` (optional, defaults to `22`)
-- `PROD_SSH_FINGERPRINT` (recommended, pins the SSH host key)
+- `VPS_HOST`
+- `VPS_PASSWORD`
+
+The deploy workflows connect over SSH as the fixed server user `deploy`.
 
 Expected server state:
 
