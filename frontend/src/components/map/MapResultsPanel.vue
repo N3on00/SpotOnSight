@@ -26,8 +26,8 @@ defineProps({
     <div class="card-body d-grid gap-2 p-3">
       <header class="d-flex flex-wrap align-items-start justify-content-between gap-2">
         <div>
-          <h3 class="h6 mb-1">Spot search results</h3>
-          <p class="small text-secondary mb-0">Results are grouped directly under the spot search card.</p>
+          <h3 class="h6 mb-0 mb-md-1">Spot search results</h3>
+          <p class="small text-secondary mb-0 results-panel-description">Results are grouped directly under the spot search card.</p>
         </div>
 
         <ActionButton
@@ -93,3 +93,24 @@ defineProps({
     </div>
   </section>
 </template>
+
+<style scoped>
+@media (max-width: 600px) {
+  .card-body {
+    padding: 0.75rem;
+  }
+
+  header h3 {
+    font-size: 0.95rem;
+  }
+
+  .results-panel-description {
+    display: none;
+  }
+
+  .spot-feed {
+    max-height: 300px;
+    overflow-y: auto;
+  }
+}
+</style>

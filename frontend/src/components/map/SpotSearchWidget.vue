@@ -68,7 +68,7 @@ function removeSubscription(subscription) {
         </div>
       </header>
 
-      <div class="small text-secondary" v-if="!isExpanded">
+      <div class="small text-secondary spot-search-collapsed-summary" v-if="!isExpanded">
         {{ collapsedSummary }}
       </div>
 
@@ -186,3 +186,35 @@ function removeSubscription(subscription) {
     </div>
   </section>
 </template>
+
+<style scoped>
+@media (max-width: 600px) {
+  .card-body {
+    padding: 0.75rem;
+  }
+
+  header h3 {
+    font-size: 0.95rem;
+  }
+
+  .spot-search-collapsed-summary {
+    font-size: 0.8rem;
+  }
+
+  .map-search-grid {
+    gap: 0.6rem;
+  }
+
+  .map-search-grid label > span {
+    font-size: 0.75rem;
+    margin-bottom: 0.15rem;
+    display: block;
+  }
+
+  .map-search-grid .form-select,
+  .map-search-grid input {
+    font-size: 0.9rem;
+    padding: 0.4rem 0.6rem;
+  }
+}
+</style>

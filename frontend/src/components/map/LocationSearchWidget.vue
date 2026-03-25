@@ -32,9 +32,11 @@ function clearActiveLocation() {
 <template>
   <section class="card border-0 shadow-sm map-widget-card" data-aos="fade-up" data-aos-delay="60">
     <div class="card-body d-grid gap-3 p-3">
-      <header>
-        <h3 class="h6 mb-1">Find place or address</h3>
-        <p class="small text-secondary mb-0">Search streets, places, and areas without leaving the app.</p>
+      <header class="d-flex flex-wrap align-items-start justify-content-between gap-2">
+        <div>
+          <h3 class="h6 mb-0 mb-md-1">Find place or address</h3>
+          <p class="small text-secondary mb-0 location-widget-description">Search streets, places, and areas without leaving the app.</p>
+        </div>
       </header>
 
       <div class="map-location-search-row">
@@ -77,7 +79,7 @@ function clearActiveLocation() {
           @click="selectResult(result)"
         >
           <strong>{{ result.label }}</strong>
-          <span class="small text-secondary">{{ result.type || 'place' }} · {{ result.lat.toFixed(4) }}, {{ result.lon.toFixed(4) }}</span>
+          <span class="small text-secondary location-result-coords">{{ result.type || 'place' }} · {{ result.lat.toFixed(4) }}, {{ result.lon.toFixed(4) }}</span>
         </ActionButton>
       </div>
 
@@ -87,3 +89,28 @@ function clearActiveLocation() {
     </div>
   </section>
 </template>
+
+<style scoped>
+@media (max-width: 600px) {
+  .card-body {
+    padding: 0.75rem;
+  }
+
+  header h3 {
+    font-size: 0.95rem;
+  }
+
+  .location-widget-description {
+    display: none;
+  }
+
+  .location-result-coords {
+    display: none;
+  }
+
+  .map-location-results {
+    max-height: 120px;
+    overflow-y: auto;
+  }
+}
+</style>

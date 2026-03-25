@@ -1,18 +1,12 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
-import LeafletSpotMap from './LeafletSpotMap.vue'
-import SpotFeedWidget from './SpotFeedWidget.vue'
 import SpotEditorModal from './SpotEditorModal.vue'
 import SpotDetailsModal from './SpotDetailsModal.vue'
-import MapResultsPanel from './MapResultsPanel.vue'
-import SpotSearchWidget from './SpotSearchWidget.vue'
-import LocationSearchWidget from './LocationSearchWidget.vue'
-import ActionButton from '../common/ActionButton.vue'
+import MobileMapOverlay from './MobileMapOverlay.vue'
 import { useMapGeolocation } from './composables/useMapGeolocation'
 import { useMapLocationSearch } from './composables/useMapLocationSearch'
 import { useSpotComments } from './composables/useSpotComments'
-import { SPOT_FEED_SCOPES } from '../../models/spotFeedScopes'
 import { useOwnerProfiles } from '../../composables/useOwnerProfiles'
 import {
   defaultSpotFilters,
@@ -65,12 +59,11 @@ const editorOpen = ref(false)
 const editorMode = ref('create')
 const pickMode = ref(false)
 const selectedSpot = ref(null)
-const activeScope = ref(SPOT_FEED_SCOPES.ALL)
 
 const mapViewportAnchor = ref(null)
 const visibleSpotCount = ref(SPOT_PAGE_SIZE)
-const spotResultsExpanded = ref(true)
 const lastFocusSignature = ref('')
+
 const { mapBounds, initializeUserLocation } = useMapGeolocation({
   state: props.state,
   getStoredLocation,
@@ -373,16 +366,11 @@ function onMarkerSelect(spot) {
   showSpotDetails(spot)
 }
 
-function openSpotFromList(spot) {
-  showSpotDetails(spot)
-}
-
 function showSpotDetails(spot) {
   showWorkspaceSpotDetails({ selectedSpot, detailsOpen, spot })
 }
 
 function goToSpot(spot) {
-  spotResultsExpanded.value = false
   goToSpotSelection({
     spot,
     selectedSpot,
@@ -453,6 +441,10 @@ function closeDetails() {
   closeSpotDetails({ detailsOpen })
 }
 
+function handleCreateMeetupAtSpot(spot) {
+  props.behavior.createMeetupAtSpot(spot)
+}
+
 function editFromDetails() {
   detailsOpen.value = false
   openEditorFromSpot(selectedSpot.value)
@@ -469,7 +461,7 @@ function loadMoreSpots() {
 }
 
 function toggleSpotResultsExpanded() {
-  spotResultsExpanded.value = !spotResultsExpanded.value
+  visibleSpotCount.value = SPOT_PAGE_SIZE
 }
 
 async function onReload() {
@@ -492,39 +484,8 @@ function onNotify(payload) {
   props.behavior.notify(payload)
 }
 
-function handleScopeChange(scope) {
-  activeScope.value = scope
-}
-
-function handleNearRadiusChange(radiusKm) {
-  props.state.map.nearRadiusKm = Math.max(1, Math.min(500, Number(radiusKm) || 25))
-}
-
-function handleOpenSpot(spot) {
-  openSpotFromList(spot)
-}
-
-function handleGoToSpot(spot) {
-  goToSpot(spot)
-}
-
-function handleLikeSpot(spot) {
-  toggleFavoriteForSpot(spot)
-}
-
-function handleShareSpot(spot) {
-  selectedSpot.value = spot
-  void shareSpot('')
-}
-
-function handleCommentSpot(spot) {
-  showSpotDetails(spot)
-}
-
-function handleVisitOwner(spot) {
-  if (spot?.owner_id) {
-    openOwnerProfile(spot.owner_id)
-  }
+function handleGoToCurrentLocation() {
+  void initializeUserLocation()
 }
 
 function setCommentDraft(next) {
@@ -534,97 +495,50 @@ function setCommentDraft(next) {
 
 <template>
   <section class="map-workspace">
-    <div class="card border-0 shadow-sm" data-aos="fade-up" data-aos-delay="40">
-      <div class="card-body d-flex flex-wrap align-items-center gap-2">
-        <ActionButton
-          class-name="btn btn-primary"
-          icon="bi-plus-circle"
-          label="New spot"
-          @click="startCreateAt(state.map.center[0], state.map.center[1])"
-        />
-        <ActionButton
-          class-name="btn btn-outline-primary"
-          icon="bi-arrow-repeat"
-          label="Reload spots"
-          @click="onReload"
-        />
-        <span class="badge-soft" v-if="pickMode">Pick mode active: click map</span>
-      </div>
-    </div>
-
-    <SpotSearchWidget
+    <MobileMapOverlay
+      :spots="state.spots"
+      :filtered-spots="filteredSpots"
+      :listed-spots="listedSpots"
+      :center="state.map.center"
+      :zoom="state.map.zoom"
+      :max-bounds="mapBounds"
       :filters="spotFilters"
       :active-location-label="activeLocationLabel"
       :result-count="filteredSpots.length"
       :total-count="state.spots.length"
       :can-reset="hasActiveSpotFilters"
       :subscriptions="filterSubscriptions"
-      :initial-expanded="false"
-      @update:filters="updateSpotFilters"
-      @reset="resetSpotFilters"
-      @subscribe="subscribeCurrentFilters"
-      @apply-subscription="applyFilterSubscription"
-      @remove-subscription="removeFilterSubscription"
-    />
-
-    <SpotFeedWidget
-      :spots="filteredSpots"
-      :filters="spotFilters"
-      :active-scope="activeScope"
-      :near-radius-km="state.map.nearRadiusKm"
-      :current-user-id="currentUserId"
-      :on-report-spot="(spot, reason, details) => props.behavior.reportContent('spot', String(spot?.id || ''), reason, details)"
-      @update:activeScope="handleScopeChange"
-      @update:near-radius-km="handleNearRadiusChange"
-      @open-spot="handleOpenSpot"
-      @go-to-spot="handleGoToSpot"
-      @like-spot="handleLikeSpot"
-      @share-spot="handleShareSpot"
-      @comment-spot="handleCommentSpot"
-      @visit-owner="handleVisitOwner"
-    />
-
-    <MapResultsPanel
-      :filtered-spots="filteredSpots"
-      :listed-spots="listedSpots"
-      :spot-results-expanded="spotResultsExpanded"
-      :can-load-more-spots="canLoadMoreSpots"
-      :remaining-spot-count="remainingSpotCount"
-      :page-size="SPOT_PAGE_SIZE"
+      :location-query="locationQuery"
+      :location-search-busy="locationSearchBusy"
+      :location-search-error="locationSearchError"
+      :location-results="locationResults"
+      :active-location="activeLocation"
       :owner-label="ownerLabel"
       :spot-distance-label="spotDistanceLabel"
       :is-favorite="isFavorite"
       :can-report-spot="(spot) => String(spot?.owner_id || '').trim() !== currentUserId"
-      :on-report-spot="(spot, reason, details) => props.behavior.reportContent('spot', String(spot?.id || ''), reason, details)"
-      :on-toggle-expanded="toggleSpotResultsExpanded"
-      :on-open-spot="openSpotFromList"
+      :on-map-tap="onMapTap"
+      :on-marker-select="onMarkerSelect"
+      :on-viewport-change="onViewportChange"
+      :on-update-filters="updateSpotFilters"
+      :on-reset-filters="resetSpotFilters"
+      :on-subscribe-filters="subscribeCurrentFilters"
+      :on-apply-subscription="applyFilterSubscription"
+      :on-remove-subscription="removeFilterSubscription"
+      :on-update-location-query="updateLocationQuery"
+      :on-search-location="runLocationSearch"
+      :on-select-location="selectLocation"
+      :on-clear-location="clearLocationFilter"
+      :on-reload="onReload"
+      :on-go-to-current-location="handleGoToCurrentLocation"
+      :on-create-spot="() => startCreateAt(state.map.center[0], state.map.center[1])"
+      :on-open-spot="showSpotDetails"
       :on-toggle-favorite="toggleFavoriteForSpot"
       :on-load-more="loadMoreSpots"
+      :can-load-more="canLoadMoreSpots"
+      :remaining-count="remainingSpotCount"
+      :on-report-spot="(spot, reason, details) => props.behavior.reportContent('spot', String(spot?.id || ''), reason, details)"
     />
-
-    <LocationSearchWidget
-      :query="locationQuery"
-      :busy="locationSearchBusy"
-      :error-text="locationSearchError"
-      :results="locationResults"
-      :active-location="activeLocation"
-      @update:query="updateLocationQuery"
-      @search="runLocationSearch"
-      @select="selectLocation"
-      @clear="clearLocationFilter"
-    />
-
-    <div ref="mapViewportAnchor">
-      <LeafletSpotMap
-        :spots="filteredSpots"
-        :center="state.map.center"
-        :zoom="state.map.zoom"
-        :max-bounds="mapBounds"
-        :on-map-tap="onMapTap"
-        :on-marker-select="onMarkerSelect"
-        :on-viewport-change="onViewportChange"
-      />
-    </div>
 
     <SpotEditorModal
       :open="editorOpen"
@@ -648,6 +562,7 @@ function setCommentDraft(next) {
       :can-delete="selectedSpotIsOwner"
       :can-share="true"
       :can-report="!selectedSpotIsOwner"
+      :show-create-meetup="true"
       :on-close="closeDetails"
       :on-edit="editFromDetails"
       :on-delete="deleteSpot"
@@ -668,6 +583,7 @@ function setCommentDraft(next) {
       :on-update-comment="updateComment"
       :on-delete-comment="deleteComment"
       :on-report-comment="(comment, reason, details) => props.behavior.reportContent('comment', String(comment?.id || ''), reason, details)"
+      @create-meetup-at-spot="handleCreateMeetupAtSpot"
     />
   </section>
 </template>
