@@ -1029,12 +1029,16 @@ function clearSearch() {
 .fullscreen-map__map :deep(.leaflet-map-shell) {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0 !important;
 }
 
 .fullscreen-map__map :deep(.leaflet-map) {
   width: 100%;
   height: 100%;
-  min-height: 100%;
+  min-height: unset !important;
+  max-height: none !important;
 }
 
 .fullscreen-map__results {
