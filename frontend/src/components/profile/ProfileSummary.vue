@@ -16,6 +16,7 @@ const props = defineProps({
   createdSpots: { type: Array, default: () => [] },
   favoriteSpots: { type: Array, default: () => [] },
   favorites: { type: Array, default: () => [] },
+  viewerIsAdmin: { type: Boolean, default: false },
   isOwnProfile: { type: Boolean, default: false },
   isFollowingProfile: { type: Boolean, default: false },
   followBusy: { type: Boolean, default: false },
@@ -161,6 +162,23 @@ function editOwnProfile() {
 function setCommentDraft(next) {
   commentDraft.value = String(next || '')
 }
+
+const adminInspectionRows = computed(() => {
+  if (!props.viewerIsAdmin || !props.profile) return []
+  return [
+    ['Mongo ID', String(props.profile.id || '-')],
+    ['Username', String(props.profile.username || '-')],
+    ['Email', String(props.profile.email || '-')],
+    ['Admin', props.profile.is_admin ? 'Yes' : 'No'],
+    ['Follow approval', props.profile.follow_requires_approval ? 'Required' : 'Open'],
+    ['Account status', String(props.profile.account_status || 'active')],
+    ['Status reason', String(props.profile.account_status_reason || 'None')],
+    ['Posting timeout', String(props.profile.posting_timeout_until || 'None')],
+    ['Strike weight (30d)', String(Number(props.profile.active_strike_weight || 0))],
+    ['Strikes (30d)', String(Number(props.profile.recent_strike_count || 0))],
+    ['Created at', String(props.profile.created_at || '-')],
+  ]
+})
 </script>
 
 <template>
@@ -226,6 +244,15 @@ function setCommentDraft(next) {
               @click="reportProfile"
             />
           </div>
+          <details class="profile-admin-inspection mt-3" v-if="viewerIsAdmin">
+            <summary>Admin inspection</summary>
+            <div class="profile-admin-inspection__grid mt-2">
+              <div class="profile-admin-inspection__row" v-for="([label, value]) in adminInspectionRows" :key="label">
+                <span class="text-secondary small">{{ label }}</span>
+                <code>{{ value }}</code>
+              </div>
+            </div>
+          </details>
         </div>
       </div>
 
@@ -313,3 +340,32 @@ function setCommentDraft(next) {
     </div>
   </section>
 </template>
+
+<style scoped>
+.profile-admin-inspection {
+  border: 1px solid var(--soft-line);
+  border-radius: 0.85rem;
+  padding: 0.8rem 0.95rem;
+  background: color-mix(in oklab, var(--app-surface-soft) 90%, var(--app-surface) 10%);
+}
+
+.profile-admin-inspection summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.profile-admin-inspection__grid {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.profile-admin-inspection__row {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.profile-admin-inspection__row code {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+</style>

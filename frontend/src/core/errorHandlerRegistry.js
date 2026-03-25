@@ -1,5 +1,6 @@
 import { asText } from '../utils/sanitizers'
 import { NOTIFICATION_CATEGORIES } from '../services/notificationService'
+import { buildSupportDebugTicket } from '../services/errorDiagnostics'
 
 const HANDLER_REGISTRY = new Map()
 const INSTANCE_CACHE = new WeakMap()
@@ -47,6 +48,17 @@ export class ScreenErrorHandler {
       title: this.resolveTitle(input),
       message: this.resolveMessage(input),
       details: this.resolveDetails(input),
+      meta: {
+        supportPayload: buildSupportDebugTicket({
+          title: this.resolveTitle(input),
+          message: this.resolveMessage(input),
+          details: this.resolveDetails(input),
+          error: input?.error,
+          scope: input?.scope,
+          screen: input?.screen,
+          route: input?.route?.fullPath || '',
+        }),
+      },
     })
     return true
   }

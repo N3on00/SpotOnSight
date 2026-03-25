@@ -8,6 +8,13 @@ function addIfDefined(out, key, value) {
   out[key] = value
 }
 
+function addIfPresentText(out, key, value) {
+  if (value === undefined || value === null) return
+  const text = String(value).trim()
+  if (!text) return
+  out[key] = text
+}
+
 function dedupeUsers(items) {
   if (!Array.isArray(items)) return []
 
@@ -198,8 +205,8 @@ export class UsersService extends ApiStateService {
     addIfDefined(payload, 'avatar_image', src.avatarImage)
     addIfDefined(payload, 'social_accounts', src.socialAccounts)
     addIfDefined(payload, 'follow_requires_approval', src.followRequiresApproval)
-    addIfDefined(payload, 'current_password', src.currentPassword)
-    addIfDefined(payload, 'new_password', src.newPassword)
+    addIfPresentText(payload, 'current_password', src.currentPassword)
+    addIfPresentText(payload, 'new_password', src.newPassword)
 
     try {
       const data = await this.api.request(API_ENDPOINTS.SOCIAL_ME_UPDATE, {

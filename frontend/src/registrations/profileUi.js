@@ -59,12 +59,13 @@ profileScreen.main({
   component: ProfileSummary,
   buildProps: ({ app, router }) => {
     const moderation = createModerationActions(app)
-    return ({
-    profile: app.state.profile.current,
+     return ({
+     profile: app.state.profile.current,
     createdSpots: app.state.profile.createdSpots,
     favoriteSpots: app.state.profile.favoriteSpots,
-    favorites: app.state.favorites,
-    isOwnProfile: String(app.state.profile.viewedUserId || '') === String(app.state.session.user?.id || ''),
+     favorites: app.state.favorites,
+     viewerIsAdmin: Boolean(app.state.session.user?.is_admin),
+     isOwnProfile: String(app.state.profile.viewedUserId || '') === String(app.state.session.user?.id || ''),
     isFollowingProfile: (app.state.social.following || [])
       .map((user) => String(user?.id || '').trim())
       .includes(String(app.state.profile.viewedUserId || '').trim()),

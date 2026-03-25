@@ -27,7 +27,7 @@ export class NotificationService {
     return 5000
   }
 
-  push({ level = 'info', title, message, details = '', sticky = false, durationMs, category }) {
+  push({ level = 'info', title, message, details = '', sticky = false, durationMs, category, meta = null }) {
     const id = seq++
     const entry = {
       id,
@@ -37,6 +37,7 @@ export class NotificationService {
       title: String(title || '').trim(),
       message: String(message || '').trim(),
       details: String(details || ''),
+      meta: meta && typeof meta === 'object' ? meta : null,
     }
 
     if (!Array.isArray(this.state.notificationLog)) {

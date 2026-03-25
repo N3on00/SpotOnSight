@@ -101,11 +101,18 @@ const userMenuRouteActive = computed(() => {
   return userMenuRouteNames.has(String(route.name || ''))
 })
 
+const userNavExpanded = computed(() => !navIconOnly.value || userMenuOpen.value || userMenuRouteActive.value)
+
 const userTriggerClass = computed(() => {
+  const classes = ['app-top-nav__tool-btn', 'app-top-nav__user-trigger-btn']
+  if (navIconOnly.value) classes.push('app-top-nav__user-trigger-btn--compact')
+  if (userNavExpanded.value) classes.push('app-top-nav__user-trigger-btn--expanded')
   if (userMenuOpen.value || userMenuRouteActive.value) {
-    return 'btn btn-primary app-top-nav__tool-btn app-top-nav__user-trigger-btn app-top-nav__user-trigger--active'
+    classes.push('btn', 'btn-primary', 'app-top-nav__user-trigger--active')
+    return classes.join(' ')
   }
-  return 'btn btn-outline-secondary app-top-nav__tool-btn app-top-nav__user-trigger-btn'
+  classes.push('btn', 'btn-outline-secondary')
+  return classes.join(' ')
 })
 
 const incomingCount = computed(() => {
@@ -124,7 +131,7 @@ const show = computed(() => {
 
 const navIconOnly = computed(() => compactBySpace.value)
 
-const showUserNavName = computed(() => !navIconOnly.value || userMenuRouteActive.value)
+const showUserNavName = computed(() => userNavExpanded.value)
 
 const userAvatar = computed(() => {
   const raw = String(me.value?.avatar_image || '').trim()
@@ -320,8 +327,8 @@ function notificationCategory(entry) {
         <ActionButton
           :class-name="notificationsOpen ? 'btn btn-primary app-top-nav__tool-btn' : 'btn btn-outline-secondary app-top-nav__tool-btn'"
           icon="bi-bell"
-          :label="navIconOnly ? '' : `Notifications (${logCount})`"
-          :icon-only="navIconOnly"
+            :label="navIconOnly ? '' : `Notifications (${logCount})`"
+            :icon-only="navIconOnly"
           aria-label="Open notification log"
           @click="toggleNotifications"
         />
@@ -330,14 +337,14 @@ function notificationCategory(entry) {
           aria-label="Open user menu"
           @click="toggleUserMenu"
         >
-          <span class="app-top-nav__user-trigger">
+          <span :class="userNavExpanded ? 'app-top-nav__user-trigger app-top-nav__user-trigger--expanded' : 'app-top-nav__user-trigger'">
             <span class="app-top-nav__user-avatar" v-if="userAvatar">
               <img :src="userAvatar" alt="profile avatar" loading="lazy" />
             </span>
             <span class="app-top-nav__user-avatar app-top-nav__user-avatar--empty" v-else>
               <i class="bi bi-person"></i>
             </span>
-            <span class="app-top-nav__user-name" v-if="showUserNavName">{{ userNavName }}</span>
+            <span :class="showUserNavName ? 'app-top-nav__user-name app-top-nav__user-name--visible' : 'app-top-nav__user-name'">{{ userNavName }}</span>
           </span>
         </ActionButton>
       </div>

@@ -29,6 +29,11 @@ export function normalizeUser(raw) {
     social_accounts: socialAccounts,
     follow_requires_approval: Boolean(item.follow_requires_approval ?? item.followRequiresApproval),
     is_admin: Boolean(item.is_admin ?? item.isAdmin),
+    account_status: asTextOr(item.account_status || item.accountStatus),
+    account_status_reason: asTextOr(item.account_status_reason || item.accountStatusReason),
+    posting_timeout_until: asTextOr(item.posting_timeout_until || item.postingTimeoutUntil),
+    active_strike_weight: Number(item.active_strike_weight ?? item.activeStrikeWeight) || 0,
+    recent_strike_count: Number(item.recent_strike_count ?? item.recentStrikeCount) || 0,
     created_at: asTextOr(item.created_at || item.createdAt),
   }
 }

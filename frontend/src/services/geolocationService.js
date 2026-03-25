@@ -1,10 +1,16 @@
 const GEOLOCATION_STORAGE_KEY = 'geolocation_prefs'
 const GEOLOCATION_TIMEOUT_MS = 10000
+const EUROPE_FALLBACK_ZOOM = 5
 
 const SWITZERLAND_CENTER = [46.8182, 8.2275]
 const SWITZERLAND_BOUNDS = [
   [45.5, 5.5],
   [47.9, 10.6],
+]
+const EUROPE_CENTER = [50.1109, 10.4515]
+const EUROPE_BOUNDS = [
+  [35, -11],
+  [61, 31],
 ]
 
 const DEFAULT_NEAR_RADIUS_KM = 25
@@ -64,9 +70,10 @@ export async function getCurrentPosition() {
       success: false,
       error: 'Geolocation not supported',
       fallback: {
-        center: SWITZERLAND_CENTER,
-        bounds: SWITZERLAND_BOUNDS,
+        center: EUROPE_CENTER,
+        bounds: EUROPE_BOUNDS,
         radiusKm: DEFAULT_NEAR_RADIUS_KM,
+        zoom: EUROPE_FALLBACK_ZOOM,
       },
     }
   }
@@ -77,9 +84,10 @@ export async function getCurrentPosition() {
         success: false,
         error: 'Geolocation timeout',
         fallback: {
-          center: SWITZERLAND_CENTER,
-          bounds: SWITZERLAND_BOUNDS,
+          center: EUROPE_CENTER,
+          bounds: EUROPE_BOUNDS,
           radiusKm: DEFAULT_NEAR_RADIUS_KM,
+          zoom: EUROPE_FALLBACK_ZOOM,
         },
       })
     }, GEOLOCATION_TIMEOUT_MS)
@@ -134,9 +142,10 @@ export async function getCurrentPosition() {
           success: false,
           error: errorMessage,
           fallback: {
-            center: SWITZERLAND_CENTER,
-            bounds: SWITZERLAND_BOUNDS,
+            center: EUROPE_CENTER,
+            bounds: EUROPE_BOUNDS,
             radiusKm: DEFAULT_NEAR_RADIUS_KM,
+            zoom: EUROPE_FALLBACK_ZOOM,
           },
         })
       },

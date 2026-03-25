@@ -3,15 +3,16 @@ import { UI_ACTIONS, UI_COMPONENT_IDS, UI_SCREENS } from '../core/uiElements'
 import AdminHero from '../components/admin/AdminHero.vue'
 import AdminModerationPanel from '../components/admin/AdminModerationPanel.vue'
 import { controllerLastError, runTask } from './uiShared'
-import { routeToHome } from '../router/routeSpec'
+import { routeToHome, routeToMap, routeToProfile } from '../router/routeSpec'
 
 const adminScreen = createScreenModule(UI_SCREENS.ADMIN)
 
 async function refreshAdminData(app) {
   await Promise.all([
     app.controller('spots').reload(),
-    app.controller('admin').loadReports('open', 100),
+    app.controller('admin').loadReports('all', 300),
     app.controller('admin').loadUsers('', 100),
+    app.controller('support').listAdminTickets(),
   ])
 }
 
@@ -39,10 +40,27 @@ adminScreen.main({
   id: UI_COMPONENT_IDS.ADMIN_PANEL,
   order: 10,
   component: AdminModerationPanel,
-  buildProps: ({ app }) => ({
+  buildProps: ({ app, router }) => ({
     reports: app.state.admin.reports,
     users: app.state.admin.users,
+    supportTickets: app.state.admin.supportTickets,
     busy: app.state.loading.adminLoad || app.state.loading.adminAction,
+    onOpenProfile: (userId) => {
+      router.push(routeToProfile(userId))
+    },
+    onGoToTarget: (report) => {
+      const preview = report?.target_preview
+      const lat = Number(preview?.lat)
+      const lon = Number(preview?.lon)
+      const spotId = String(preview?.spot_id || report?.target_id || '').trim()
+      if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        router.push(routeToMap({ lat, lon, spotId }))
+        return
+      }
+      if (String(report?.target_type || '') === 'user') {
+        router.push(routeToProfile(report?.target_id))
+      }
+    },
     onRefresh: async () => {
       await runTask(app, {
         task: () => refreshAdminData(app),

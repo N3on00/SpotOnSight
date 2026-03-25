@@ -8,6 +8,7 @@ SpotOnSight is a location-based social platform for discovering, saving, and sha
 - Backend: FastAPI service with MongoDB persistence in `backend/`
 - Mobile: Capacitor wrapper in `mobile/capacitor/`
 - Infrastructure: local Docker and deployment scaffolding in `infrastructure/`
+- Admin moderation now includes enriched report inspection, profile-level admin diagnostics, and client error reports submitted from in-app failure popups.
 
 ## Architecture
 

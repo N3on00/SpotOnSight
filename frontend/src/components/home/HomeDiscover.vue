@@ -103,7 +103,7 @@ function setCommentDraft(next) {
           icon="bi-arrow-repeat"
           :busy="refreshBusy"
           busy-label="Refreshing..."
-          class-name="btn btn-outline-primary btn-sm"
+          class-name="btn btn-outline-primary btn-sm mobile-compact-action"
           @click="onRefresh"
         />
       </header>

@@ -96,7 +96,7 @@ function isFollowingUser(user) {
           class-name="btn btn-primary"
           @click="submitSearch"
         />
-        <ActionButton label="Refresh" icon="bi-arrow-repeat" class-name="btn btn-outline-secondary" @click="onRefresh" />
+        <ActionButton label="Refresh" icon="bi-arrow-repeat" class-name="btn btn-outline-secondary mobile-compact-action" @click="onRefresh" />
       </div>
 
       <div class="social-search-results" v-if="searchResults.length">

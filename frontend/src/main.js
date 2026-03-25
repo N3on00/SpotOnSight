@@ -35,9 +35,9 @@ function applyTheme(theme) {
 applyTheme(appCtx.state.ui.theme)
 
 AOS.init({
-  duration: 650,
+  duration: 900,
   once: true,
-  easing: 'ease-out-cubic',
+  easing: 'ease-in-out-cubic',
   offset: 18,
 })
 

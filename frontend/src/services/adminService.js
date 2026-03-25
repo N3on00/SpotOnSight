@@ -5,6 +5,7 @@ import { ApiStateService } from './baseService'
 
 function normalizeModerationReport(item) {
   const row = item && typeof item === 'object' ? item : {}
+  const preview = row.target_preview && typeof row.target_preview === 'object' ? row.target_preview : null
   return {
     id: asText(row.id || row._id),
     reporter_user_id: asText(row.reporter_user_id),
@@ -20,6 +21,23 @@ function normalizeModerationReport(item) {
     created_at: asText(row.created_at),
     reviewed_at: asText(row.reviewed_at),
     reviewed_by: asText(row.reviewed_by),
+    reporter_user: row.reporter_user ? normalizeUser(row.reporter_user) : null,
+    target_owner_user: row.target_owner_user ? normalizeUser(row.target_owner_user) : null,
+    target_user: row.target_user ? normalizeUser(row.target_user) : null,
+    target_preview: preview ? {
+      id: asText(preview.id),
+      label: asText(preview.label),
+      subtitle: asText(preview.subtitle),
+      body: asText(preview.body),
+      owner_user_id: asText(preview.owner_user_id),
+      spot_id: asText(preview.spot_id),
+      lat: Number.isFinite(Number(preview.lat)) ? Number(preview.lat) : null,
+      lon: Number.isFinite(Number(preview.lon)) ? Number(preview.lon) : null,
+      moderation_status: asText(preview.moderation_status),
+    } : null,
+    target_distinct_reporter_count: Number(row.target_distinct_reporter_count) || 0,
+    target_report_count: Number(row.target_report_count) || 0,
+    reporter_distinct_target_count: Number(row.reporter_distinct_target_count) || 0,
   }
 }
 

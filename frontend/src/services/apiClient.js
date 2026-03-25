@@ -108,6 +108,8 @@ export class ApiClient {
             method,
             path: p,
             data,
+            url,
+            requestBody: body,
           })
         }
 

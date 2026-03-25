@@ -105,7 +105,7 @@ function sanitizeErrorMessage(value) {
 }
 
 export class ApiError extends Error {
-  constructor({ status = 0, method = 'GET', path = '', data = null } = {}) {
+  constructor({ status = 0, method = 'GET', path = '', data = null, url = '', requestBody = null } = {}) {
     const normalizedMethod = String(method || 'GET').toUpperCase()
     const normalizedPath = String(path || '')
     super(`HTTP ${status} ${normalizedMethod} ${normalizedPath}`.trim())
@@ -115,6 +115,8 @@ export class ApiError extends Error {
     this.method = normalizedMethod
     this.path = normalizedPath
     this.data = data
+    this.url = toText(url)
+    this.requestBody = requestBody
   }
 
   userMessage(fallback = 'Request failed.') {
@@ -145,8 +147,8 @@ export class ValidationApiError extends ApiError {
   }
 }
 
-export function createApiError({ status = 0, method = 'GET', path = '', data = null } = {}) {
-  const payload = { status, method, path, data }
+export function createApiError({ status = 0, method = 'GET', path = '', data = null, url = '', requestBody = null } = {}) {
+  const payload = { status, method, path, data, url, requestBody }
   if (status === 409) {
     return new ConflictApiError(payload)
   }

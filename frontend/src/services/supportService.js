@@ -19,6 +19,7 @@ function normalizeTicket(input, fallbackEmail = '') {
     page: asText(src.page),
     contact_email: asText(src.contactEmail || fallbackEmail),
     allow_contact: Boolean(src.allowContact),
+    technical_details: asText(src.technicalDetails),
   }
 }
 
@@ -33,6 +34,7 @@ function normalizeCreatedTicket(value) {
     page: asText(src.page),
     contactEmail: asText(src.contact_email),
     allowContact: Boolean(src.allow_contact),
+    technicalDetails: asText(src.technical_details),
     status: asText(src.status || 'open').toLowerCase() === 'closed' ? 'closed' : 'open',
     createdAt: asText(src.created_at),
   }
@@ -61,6 +63,24 @@ export class SupportService extends ApiStateService {
     } catch (error) {
       this.captureError(error, 'Could not submit support request')
       return null
+    }
+  }
+
+  async createDebugTicket(input) {
+    return this.createTicket(input)
+  }
+
+  async listAdminTickets() {
+    try {
+      const data = await this.api.request(API_ENDPOINTS.SUPPORT_ADMIN_TICKETS_LIST)
+      const tickets = Array.isArray(data) ? data.map((item) => normalizeCreatedTicket(item)) : []
+      this.state.admin.supportTickets = tickets
+      this.clearError()
+      return tickets
+    } catch (error) {
+      this.captureError(error, 'Could not load support tickets')
+      this.state.admin.supportTickets = []
+      return []
     }
   }
 }

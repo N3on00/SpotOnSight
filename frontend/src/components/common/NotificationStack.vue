@@ -138,7 +138,36 @@ function onLeave(n) {
   const id = String(n?.id || '')
   if (!id) return
   hovered[id] = false
-   notify.release(n.id, detailsExpanded[id] ? EXPANDED_RELEASE_DELAY_MS : RELEASE_DELAY_MS)
+  notify.release(n.id, detailsExpanded[id] ? EXPANDED_RELEASE_DELAY_MS : RELEASE_DELAY_MS)
+}
+
+function canSendToSupport(n) {
+  return String(n?.level || '').toLowerCase() === 'error' && Boolean(n?.meta?.supportPayload)
+}
+
+async function sendToSupport(n) {
+  const payload = n?.meta?.supportPayload
+  if (!payload) return
+  try {
+    const ticket = await app.controller('support').submitDebugTicket(payload)
+    if (!ticket) {
+      throw new Error(app.controller('support').lastError() || 'Could not submit debug report')
+    }
+    app.service('notify').push({
+      category: NOTIFICATION_CATEGORIES.SYSTEM,
+      level: 'success',
+      title: 'Debug report sent',
+      message: `Support ticket ${String(ticket.id || '').trim() || 'created'} recorded this error.`,
+    })
+  } catch (error) {
+    app.service('notify').push({
+      category: NOTIFICATION_CATEGORIES.SYSTEM,
+      level: 'warning',
+      title: 'Debug report failed',
+      message: 'Could not send this error to support.',
+      details: String(error?.message || error || ''),
+    })
+  }
 }
 
 async function copyDetails(details) {
@@ -194,6 +223,13 @@ async function copyDetails(details) {
           icon="bi-clipboard"
           label="Copy details"
           @click="copyDetails(detailsOf(n))"
+        />
+        <ActionButton
+          v-if="canSendToSupport(n)"
+          class-name="btn btn-sm btn-outline-primary"
+          icon="bi-bug"
+          label="Send to support"
+          @click="sendToSupport(n)"
         />
         <ActionButton class-name="btn btn-sm btn-outline-secondary" label="Close" @click="close(n.id)" />
       </div>

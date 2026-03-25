@@ -50,17 +50,11 @@ const props = defineProps({
   color: #f7f4ea;
 }
 
-.admin-hero .card-body {
-  position: relative;
-}
-
 .admin-hero__stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.85rem;
   min-width: min(100%, 26rem);
-  position: relative;
-  z-index: 1;
 }
 
 .admin-hero__stat {
@@ -84,13 +78,13 @@ const props = defineProps({
 }
 
 .admin-hero__visual {
-  position: absolute;
-  top: 1.3rem;
-  right: 1.5rem;
+  position: relative;
+  flex: 0 0 11rem;
   width: 11rem;
   height: 11rem;
   pointer-events: none;
   opacity: 0.95;
+  align-self: center;
 }
 
 .admin-hero__shield {
@@ -143,15 +137,14 @@ const props = defineProps({
 @media (max-width: 767px) {
   .admin-hero__stats {
     grid-template-columns: 1fr;
+    min-width: 100%;
   }
 
   .admin-hero__visual {
-    position: relative;
-    top: auto;
-    right: auto;
     width: 100%;
     height: 7rem;
     margin-top: 0.4rem;
+    flex-basis: auto;
   }
 }
 </style>

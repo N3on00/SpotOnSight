@@ -142,13 +142,13 @@ async function submitReport(payload) {
         <p class="small text-secondary mb-0 spot-card-mini__description">{{ descriptionText }}</p>
 
         <div class="spot-card-mini__meta">
-          <span><i class="bi bi-geo-alt me-1"></i>{{ Number(spot?.lat || 0).toFixed(3) }}, {{ Number(spot?.lon || 0).toFixed(3) }}</span>
-          <span><i class="bi bi-images me-1"></i>{{ imageCount }} image(s)</span>
-          <span v-if="ownerLabel"><i class="bi bi-person-circle me-1"></i>{{ ownerLabel }}</span>
-          <span v-if="distanceLabel"><i class="bi bi-signpost-2 me-1"></i>{{ distanceLabel }}</span>
+          <span class="spot-card-mini__meta-item spot-card-mini__meta-item--coords"><i class="bi bi-geo-alt me-1"></i>{{ Number(spot?.lat || 0).toFixed(3) }}, {{ Number(spot?.lon || 0).toFixed(3) }}</span>
+          <span class="spot-card-mini__meta-item spot-card-mini__meta-item--images"><i class="bi bi-images me-1"></i>{{ imageCount }} image(s)</span>
+          <span class="spot-card-mini__meta-item spot-card-mini__meta-item--owner" v-if="ownerLabel"><i class="bi bi-person-circle me-1"></i>{{ ownerLabel }}</span>
+          <span class="spot-card-mini__meta-item spot-card-mini__meta-item--distance" v-if="distanceLabel"><i class="bi bi-signpost-2 me-1"></i>{{ distanceLabel }}</span>
         </div>
 
-        <div class="tag-row" v-if="visibleTags.length">
+        <div class="tag-row spot-card-mini__tags" v-if="visibleTags.length">
           <span class="tag" v-for="tag in visibleTags" :key="`${spot?.id || spot?.title || 'spot'}-${tag}`">{{ tag }}</span>
         </div>
 
