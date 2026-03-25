@@ -236,6 +236,7 @@ function createDefaultControllers(state) {
     },
     support: {
       submitTicket: vi.fn(async () => ({ id: 'ticket-1' })),
+      listAdminTickets: vi.fn(async () => []),
       lastError: vi.fn(() => ''),
     },
     comments: {

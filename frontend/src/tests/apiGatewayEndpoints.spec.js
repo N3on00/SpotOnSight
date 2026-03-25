@@ -445,6 +445,22 @@ const ENDPOINT_FIXTURES = Object.freeze({
     },
     expectedPath: '/social/meetup-comments/comment%201',
   },
+  [API_ENDPOINTS.SOCIAL_MEETUP_NOTIFICATIONS_LIST]: {
+    options: {},
+    expectedPath: '/social/meetup-notifications',
+  },
+  [API_ENDPOINTS.SOCIAL_MEETUPS_SPOTS]: {
+    options: {
+      params: {
+        spotId: 'spot 1',
+      },
+    },
+    expectedPath: '/social/meetups/spots',
+  },
+  [API_ENDPOINTS.SUPPORT_ADMIN_TICKETS_LIST]: {
+    options: {},
+    expectedPath: '/social/support/tickets/admin/all',
+  },
 })
 
 describe('ApiGatewayService endpoint dispatch', () => {

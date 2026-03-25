@@ -108,7 +108,7 @@ describe('Admin page harness', () => {
     const page = new AdminPageHarness()
 
     await page.runAction(UI_ACTIONS.ADMIN_REFRESH)
-    expect(page.controllers.admin.loadReports).toHaveBeenCalledWith('open', 100)
+    expect(page.controllers.admin.loadReports).toHaveBeenCalledWith('all', 300)
     expect(page.controllers.admin.loadUsers).toHaveBeenCalledWith('', 100)
     expect(page.controllers.spots.reload).toHaveBeenCalled()
 

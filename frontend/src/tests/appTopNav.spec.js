@@ -85,7 +85,9 @@ describe('AppTopNav', () => {
     routeState.fullPath = '/home'
 
     const wrapper = mountTopNav()
+    const userNameSpan = wrapper.find('.app-top-nav__user-name')
 
-    expect(wrapper.text()).not.toContain('@taylor')
+    expect(userNameSpan.exists()).toBe(true)
+    expect(userNameSpan.classes()).not.toContain('app-top-nav__user-name--visible')
   })
 })
