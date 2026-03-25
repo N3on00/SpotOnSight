@@ -608,7 +608,6 @@ function clearSearch() {
   position: fixed;
   inset: 0;
   z-index: 1150;
-  background: var(--app-body-bg);
 }
 
 .fullscreen-map__content {
@@ -621,7 +620,6 @@ function clearSearch() {
   .fullscreen-map {
     display: flex;
     flex-direction: row;
-    top: 56px;
   }
 
   .fullscreen-map__content {
