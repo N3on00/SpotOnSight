@@ -1187,6 +1187,32 @@ function clearSearch() {
 }
 
 @media (min-width: 768px) {
+  .fullscreen-map {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .fullscreen-map__toolbar {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: 100;
+    width: 340px;
+    max-height: calc(100vh - 1.5rem);
+    overflow-y: auto;
+    border-radius: var(--bs-border-radius-lg);
+    border: 1px solid var(--soft-line);
+    box-shadow: var(--surface-shadow);
+  }
+
+  .fullscreen-map__toolbar-row {
+    flex-wrap: nowrap;
+  }
+
+  .fullscreen-map__content {
+    flex: 1;
+  }
+
   .fullscreen-map__results {
     left: auto;
     right: 0.75rem;
