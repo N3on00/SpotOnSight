@@ -621,6 +621,7 @@ function clearSearch() {
   .fullscreen-map {
     display: flex;
     flex-direction: row;
+    top: 56px;
   }
 
   .fullscreen-map__content {
@@ -656,6 +657,7 @@ function clearSearch() {
     right: auto;
     flex: 0 0 auto;
     margin: 0.75rem;
+    margin-top: 0;
     width: auto;
     max-width: 400px;
     max-height: none;
