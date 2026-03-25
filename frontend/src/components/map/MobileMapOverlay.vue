@@ -1248,6 +1248,29 @@ function clearSearch() {
     width: 380px;
     max-height: 60vh;
   }
+
+  .fullscreen-map__map :deep(.leaflet-control-zoom) {
+    top: 0.75rem;
+    right: 0.75rem;
+    left: auto;
+    border: none;
+    border-radius: var(--bs-border-radius);
+    box-shadow: var(--surface-shadow);
+    overflow: hidden;
+  }
+
+  .fullscreen-map__map :deep(.leaflet-control-zoom a) {
+    background: var(--app-surface);
+    color: var(--app-text);
+    border-color: var(--soft-line);
+    width: 36px;
+    height: 36px;
+    line-height: 36px;
+  }
+
+  .fullscreen-map__map :deep(.leaflet-control-zoom a:hover) {
+    background: var(--app-surface-soft);
+  }
 }
 
 @media (max-width: 600px) {
