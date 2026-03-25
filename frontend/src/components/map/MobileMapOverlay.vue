@@ -383,130 +383,130 @@ function clearSearch() {
           />
         </div>
       </div>
-    </div>
 
-    <Transition name="filter-slide">
-      <div class="fullscreen-map__filter-panel" v-if="filterPanelOpen">
-        <div class="fullscreen-map__filter-inner">
-          <div class="fullscreen-map__filter-section">
-            <label class="fullscreen-map__filter-label">Quick Location</label>
-            <div class="fullscreen-map__location-row">
-              <AppTextField
-                bare
-                class-name="form-control"
-                placeholder="Find place or address..."
-                v-model="locationQueryLocal"
-                @enter="runLocationSearch"
-              />
-              <ActionButton
-                class-name="btn btn-outline-primary"
-                icon="bi-search"
-                icon-only
-                :label="locationSearchBusy ? 'Searching...' : 'Search'"
-                :disabled="locationSearchBusy || !locationQueryLocal"
-                @click="runLocationSearch"
-              />
-              <ActionButton
-                class-name="btn btn-outline-secondary"
-                icon="bi-x-circle"
-                icon-only
-                label="Clear"
-                :disabled="!activeLocation"
-                @click="clearLocation"
-              />
+      <Transition name="filter-slide">
+        <div class="fullscreen-map__filter-panel" v-if="filterPanelOpen">
+          <div class="fullscreen-map__filter-inner">
+            <div class="fullscreen-map__filter-section">
+              <label class="fullscreen-map__filter-label">Quick Location</label>
+              <div class="fullscreen-map__location-row">
+                <AppTextField
+                  bare
+                  class-name="form-control"
+                  placeholder="Find place or address..."
+                  v-model="locationQueryLocal"
+                  @enter="runLocationSearch"
+                />
+                <ActionButton
+                  class-name="btn btn-outline-primary"
+                  icon="bi-search"
+                  icon-only
+                  :label="locationSearchBusy ? 'Searching...' : 'Search'"
+                  :disabled="locationSearchBusy || !locationQueryLocal"
+                  @click="runLocationSearch"
+                />
+                <ActionButton
+                  class-name="btn btn-outline-secondary"
+                  icon="bi-x-circle"
+                  icon-only
+                  label="Clear"
+                  :disabled="!activeLocation"
+                  @click="clearLocation"
+                />
+              </div>
+              
+              <div class="fullscreen-map__location-results" v-if="locationResults.length">
+                <button
+                  class="fullscreen-map__location-result"
+                  v-for="result in locationResults.slice(0, 3)"
+                  :key="`filter-loc-${result.id}-${result.lat}`"
+                  @click="selectLocation(result)"
+                >
+                  <i class="bi bi-geo-alt"></i>
+                  <span>{{ result.label }}</span>
+                  <small class="text-muted">{{ result.type || 'place' }}</small>
+                </button>
+              </div>
+              
+              <div class="fullscreen-map__active-location" v-if="activeLocation">
+                <i class="bi bi-pin-map"></i>
+                {{ activeLocation.label }}
+              </div>
             </div>
             
-            <div class="fullscreen-map__location-results" v-if="locationResults.length">
-              <button
-                class="fullscreen-map__location-result"
-                v-for="result in locationResults.slice(0, 3)"
-                :key="`filter-loc-${result.id}-${result.lat}`"
-                @click="selectLocation(result)"
+            <div class="fullscreen-map__filter-row">
+              <div class="fullscreen-map__filter-group">
+                <label class="fullscreen-map__filter-label">Tags</label>
+                <AppTextField
+                  bare
+                  class-name="form-control form-control-sm"
+                  placeholder="nature, quiet..."
+                  v-model="tagsText"
+                />
+              </div>
+              
+              <div class="fullscreen-map__filter-group">
+                <label class="fullscreen-map__filter-label">Profile</label>
+                <AppTextField
+                  bare
+                  class-name="form-control form-control-sm"
+                  placeholder="@username"
+                  v-model="ownerText"
+                />
+              </div>
+            </div>
+            
+            <div class="fullscreen-map__filter-row">
+              <div class="fullscreen-map__filter-group">
+                <label class="fullscreen-map__filter-label">Visibility</label>
+                <select 
+                  class="form-select form-select-sm"
+                  v-model="visibility"
+                >
+                  <option value="all">All</option>
+                  <option value="public">Public</option>
+                  <option value="following">Followers</option>
+                  <option value="invite_only">Invite</option>
+                  <option value="personal">Personal</option>
+                </select>
+              </div>
+              
+              <div class="fullscreen-map__filter-group">
+                <label class="fullscreen-map__filter-label">Radius</label>
+                <select 
+                  class="form-select form-select-sm"
+                  v-model="radiusKm"
+                >
+                  <option :value="0">Any</option>
+                  <option :value="1">1 km</option>
+                  <option :value="5">5 km</option>
+                  <option :value="10">10 km</option>
+                  <option :value="25">25 km</option>
+                  <option :value="50">50 km</option>
+                  <option :value="100">100 km</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="fullscreen-map__filter-footer">
+              <AppCheckbox
+                wrapper-class="app-checkbox"
+                v-model="onlyFavorites"
+                label="Liked spots only"
+              />
+              
+              <button 
+                class="btn btn-sm btn-link text-secondary"
+                v-if="canReset"
+                @click="onResetFilters"
               >
-                <i class="bi bi-geo-alt"></i>
-                <span>{{ result.label }}</span>
-                <small class="text-muted">{{ result.type || 'place' }}</small>
+                Reset all
               </button>
             </div>
-            
-            <div class="fullscreen-map__active-location" v-if="activeLocation">
-              <i class="bi bi-pin-map"></i>
-              {{ activeLocation.label }}
-            </div>
-          </div>
-          
-          <div class="fullscreen-map__filter-row">
-            <div class="fullscreen-map__filter-group">
-              <label class="fullscreen-map__filter-label">Tags</label>
-              <AppTextField
-                bare
-                class-name="form-control form-control-sm"
-                placeholder="nature, quiet..."
-                v-model="tagsText"
-              />
-            </div>
-            
-            <div class="fullscreen-map__filter-group">
-              <label class="fullscreen-map__filter-label">Profile</label>
-              <AppTextField
-                bare
-                class-name="form-control form-control-sm"
-                placeholder="@username"
-                v-model="ownerText"
-              />
-            </div>
-          </div>
-          
-          <div class="fullscreen-map__filter-row">
-            <div class="fullscreen-map__filter-group">
-              <label class="fullscreen-map__filter-label">Visibility</label>
-              <select 
-                class="form-select form-select-sm"
-                v-model="visibility"
-              >
-                <option value="all">All</option>
-                <option value="public">Public</option>
-                <option value="following">Followers</option>
-                <option value="invite_only">Invite</option>
-                <option value="personal">Personal</option>
-              </select>
-            </div>
-            
-            <div class="fullscreen-map__filter-group">
-              <label class="fullscreen-map__filter-label">Radius</label>
-              <select 
-                class="form-select form-select-sm"
-                v-model="radiusKm"
-              >
-                <option :value="0">Any</option>
-                <option :value="1">1 km</option>
-                <option :value="5">5 km</option>
-                <option :value="10">10 km</option>
-                <option :value="25">25 km</option>
-                <option :value="50">50 km</option>
-                <option :value="100">100 km</option>
-              </select>
-            </div>
-          </div>
-          
-          <div class="fullscreen-map__filter-footer">
-            <AppCheckbox
-              wrapper-class="app-checkbox"
-              v-model="onlyFavorites"
-              label="Liked spots only"
-            />
-            
-            <button 
-              class="btn btn-sm btn-link text-secondary"
-              v-if="canReset"
-              @click="onResetFilters"
-            >
-              Reset all
-            </button>
           </div>
         </div>
-      </div>
-    </Transition>
+      </Transition>
+    </div>
 
     <div class="fullscreen-map__content">
       <div class="fullscreen-map__map">
@@ -617,6 +617,18 @@ function clearSearch() {
   z-index: 1;
 }
 
+@media (min-width: 768px) {
+  .fullscreen-map {
+    display: flex;
+    flex-direction: row;
+  }
+
+  .fullscreen-map__content {
+    position: relative;
+    flex: 1;
+  }
+}
+
 .fullscreen-map__toolbar {
   position: absolute;
   top: 0.75rem;
@@ -634,6 +646,20 @@ function clearSearch() {
   box-shadow: var(--surface-shadow);
   max-height: calc(100vh - 1.5rem);
   overflow-y: auto;
+}
+
+@media (min-width: 768px) {
+  .fullscreen-map__toolbar {
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    flex: 0 0 auto;
+    margin: 0.75rem;
+    width: auto;
+    max-width: 400px;
+    max-height: none;
+  }
 }
 
 .fullscreen-map__toolbar-row {
@@ -1216,10 +1242,6 @@ function clearSearch() {
 }
 
 @media (min-width: 768px) {
-  .fullscreen-map__toolbar {
-    width: 340px;
-  }
-
   .fullscreen-map__results {
     left: auto;
     right: 0.75rem;
