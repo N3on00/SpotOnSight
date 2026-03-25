@@ -135,6 +135,7 @@ export function createAppState() {
     admin: {
       reports: [],
       users: [],
+      supportTickets: [],
     },
     map: {
       center: [47.3769, 8.5417],
@@ -143,6 +144,7 @@ export function createAppState() {
       draftLon: null,
       filterSubscriptions,
       nearRadiusKm: 25,
+      meetupCreationSpot: null,
     },
     profile: {
       current: null,

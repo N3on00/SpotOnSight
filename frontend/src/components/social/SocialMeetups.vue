@@ -9,6 +9,7 @@ const props = defineProps({
   meetups: { type: Array, default: () => [] },
   invites: { type: Array, default: () => [] },
   people: { type: Array, default: () => [] },
+  preselectedSpot: { type: Object, default: null },
   busy: { type: Boolean, default: false },
   currentUserId: { type: String, default: '' },
   onLoadUserProfile: { type: Function, required: true },
@@ -27,6 +28,7 @@ const draft = ref({
   starts_at: '',
   description: '',
   invite_user_ids: [],
+  spot_id: null,
 })
 const detailMeetupId = ref('')
 const commentsByMeetup = ref({})
@@ -71,6 +73,14 @@ watch(
   { immediate: true, deep: true },
 )
 
+watch(
+  () => props.preselectedSpot,
+  (spot) => {
+    draft.value.spot_id = spot?.id || null
+  },
+  { immediate: true },
+)
+
 function toggleInvite(userId) {
   const id = String(userId || '').trim()
   if (!id) return
@@ -93,6 +103,7 @@ async function createMeetup() {
     starts_at: String(draft.value.starts_at || '').trim(),
     description: String(draft.value.description || '').trim(),
     invite_user_ids: [...draft.value.invite_user_ids],
+    spot_id: draft.value.spot_id || null,
   }
   const created = await props.onCreateMeetup(payload)
   if (!created) return
@@ -101,7 +112,12 @@ async function createMeetup() {
     starts_at: '',
     description: '',
     invite_user_ids: [],
+    spot_id: null,
   }
+}
+
+function removeSpot() {
+  draft.value.spot_id = null
 }
 
 function inviteStatus(meetupId) {
@@ -202,7 +218,7 @@ async function submitReport(payload) {
           <h3 class="h6 mb-1">Meetups</h3>
           <p class="small text-secondary mb-0">Plan meetup time, invite people, track responses, and discuss details.</p>
         </div>
-        <ActionButton class-name="btn btn-outline-secondary" icon="bi-arrow-repeat" label="Refresh" :busy="busy" @click="onRefresh" />
+        <ActionButton class-name="btn btn-outline-secondary mobile-compact-action" icon="bi-arrow-repeat" label="Refresh" :busy="busy" @click="onRefresh" />
       </header>
 
       <section class="meetup-create-box">
@@ -211,6 +227,17 @@ async function submitReport(payload) {
           <AppTextField bare class-name="form-control" v-model="draft.title" maxlength="120" placeholder="Title" aria-label="Meetup title" />
           <AppTextField bare class-name="form-control" type="datetime-local" v-model="draft.starts_at" aria-label="Meetup time" />
           <AppTextField bare class-name="form-control" v-model="draft.description" maxlength="3000" placeholder="Description" aria-label="Meetup description" />
+        </div>
+        <div v-if="draft.spot_id && preselectedSpot" class="spot-info-row mt-2">
+          <i class="bi bi-geo-alt"></i>
+          <span>{{ preselectedSpot.title }}</span>
+          <ActionButton
+            class-name="btn btn-sm btn-outline-secondary mobile-compact-action"
+            icon="bi-x"
+            :icon-only="true"
+            aria-label="Remove spot"
+            @click="removeSpot"
+          />
         </div>
         <div class="meetup-invite-grid mt-2" v-if="people.length">
           <ActionButton
@@ -232,7 +259,8 @@ async function submitReport(payload) {
           <div>
             <div class="fw-semibold">{{ meetup.title }}</div>
             <div class="small text-secondary"><i class="bi bi-person-circle me-1"></i>{{ meetupHostLabel(meetup) }}</div>
-            <div class="small text-secondary">{{ meetup.starts_at }}</div>
+            <div class="small text-secondary"><i class="bi bi-clock me-1"></i>{{ meetup.starts_at }}</div>
+            <div class="small text-secondary" v-if="meetup.spot_id || meetup.spot"><i class="bi bi-geo-alt me-1"></i>{{ meetup.spot?.title || 'Spot selected' }}</div>
             <div class="small text-secondary">{{ meetup.description || 'No description' }}</div>
             <div class="small text-secondary" v-if="inviteStatus(meetup.id)">
               Your response: {{ inviteStatus(meetup.id).status }}
@@ -281,7 +309,8 @@ async function submitReport(payload) {
           <ActionButton class-name="btn btn-outline-secondary btn-sm" icon="bi-x-lg" :icon-only="true" aria-label="Close meetup details" @click="closeDetails" />
         </header>
         <p class="mb-0">{{ detailMeetup().description || 'No description' }}</p>
-        <p class="small text-secondary mb-0">Starts: {{ detailMeetup().starts_at }}</p>
+        <p class="small text-secondary mb-0"><i class="bi bi-clock me-1"></i>{{ detailMeetup().starts_at }}</p>
+        <p class="small text-secondary mb-0" v-if="detailMeetup().spot_id || detailMeetup().spot"><i class="bi bi-geo-alt me-1"></i>{{ detailMeetup().spot?.title || 'Spot selected' }}</p>
 
         <section class="comments-box">
           <h4 class="h6 mb-0">Meetup Comments</h4>

@@ -145,7 +145,32 @@ class UserPublic(BaseModel):
     social_accounts: Dict[str, str] = Field(default_factory=dict)
     follow_requires_approval: bool = False
     is_admin: bool = False
+    account_status: str = ""
+    account_status_reason: str = ""
+    posting_timeout_until: Optional[datetime] = None
+    active_strike_weight: int = 0
+    recent_strike_count: int = 0
     created_at: datetime
+
+
+class ModerationUserSummary(BaseModel):
+    id: str
+    username: str = ""
+    display_name: str = ""
+    email: str = ""
+    is_admin: bool = False
+
+
+class ModerationTargetPreview(BaseModel):
+    id: str
+    label: str = ""
+    subtitle: str = ""
+    body: str = ""
+    owner_user_id: str = ""
+    spot_id: str = ""
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+    moderation_status: str = ""
 
 
 class SpotUpsertRequest(BaseModel):
@@ -185,6 +210,7 @@ class SupportTicketRequest(BaseModel):
     page: str = Field(default="", max_length=240)
     contact_email: Optional[str] = Field(default=None, max_length=200)
     allow_contact: bool = False
+    technical_details: str = Field(default="", max_length=200000)
 
 
 class SupportTicketPublic(BaseModel):
@@ -196,6 +222,7 @@ class SupportTicketPublic(BaseModel):
     page: str = ""
     contact_email: str = ""
     allow_contact: bool = False
+    technical_details: str = ""
     status: Literal["open", "closed"] = "open"
     created_at: datetime
 
@@ -235,6 +262,13 @@ class ModerationReportPublic(BaseModel):
     created_at: datetime
     reviewed_at: Optional[datetime] = None
     reviewed_by: str = ""
+    reporter_user: Optional[ModerationUserSummary] = None
+    target_owner_user: Optional[ModerationUserSummary] = None
+    target_user: Optional[ModerationUserSummary] = None
+    target_preview: Optional[ModerationTargetPreview] = None
+    target_distinct_reporter_count: int = 0
+    target_report_count: int = 0
+    reporter_distinct_target_count: int = 0
 
 
 class ModerationNotificationPublic(BaseModel):
@@ -387,6 +421,7 @@ class MeetupCreateRequest(BaseModel):
     description: str = Field(default="", max_length=3000)
     starts_at: datetime
     invite_user_ids: List[str] = Field(default_factory=list)
+    spot_id: Optional[str] = Field(default=None, max_length=50)
 
 
 class MeetupUpdateRequest(BaseModel):
@@ -394,6 +429,7 @@ class MeetupUpdateRequest(BaseModel):
     description: Optional[str] = Field(default=None, max_length=3000)
     starts_at: Optional[datetime] = None
     invite_user_ids: Optional[List[str]] = None
+    spot_id: Optional[str] = Field(default=None, max_length=50)
 
 
 class MeetupPublic(BaseModel):
@@ -403,6 +439,8 @@ class MeetupPublic(BaseModel):
     description: str = ""
     starts_at: datetime
     invite_user_ids: List[str] = Field(default_factory=list)
+    spot_id: Optional[str] = None
+    spot: Optional[SpotPublic] = None
     moderation_status: Literal["visible", "flagged", "hidden"] = "visible"
     created_at: datetime
     updated_at: datetime
@@ -445,6 +483,18 @@ class MeetupCommentCreateRequest(BaseModel):
 
 class MeetupCommentUpdateRequest(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
+
+
+class MeetupNotificationPublic(BaseModel):
+    id: str
+    user_id: str
+    meetup_id: str
+    meetup_title: str
+    notification_type: str
+    from_user_id: str
+    from_username: str
+    message: str = ""
+    created_at: datetime
 
 
 def _social_actions(repos):
@@ -1086,6 +1136,38 @@ def _meetup_comments_delete_endpoint(repos):
     return delete_meetup_comment
 
 
+def _meetup_notifications_endpoint(repos):
+    actions = _social_actions(repos)
+    from services.auth.current_user import get_current_user
+
+    async def list_meetup_notifications(current_user: dict = Depends(get_current_user)):
+        return actions.list_meetup_notifications(current_user)
+
+    return list_meetup_notifications
+
+
+def _meetups_spots_endpoint(repos):
+    actions = _social_actions(repos)
+    from services.auth.current_user import get_current_user
+
+    async def list_meetups_spots(current_user: dict = Depends(get_current_user)):
+        return actions.list_visible_spots(current_user)
+
+    return list_meetups_spots
+
+
+# TODO: SSE endpoint for real-time notifications
+# def _notifications_stream_endpoint(repos):
+#     actions = _social_actions(repos)
+#     from services.auth.current_user import get_current_user
+#
+#     async def notifications_stream(current_user: dict = Depends(get_current_user)):
+#         # TODO: Implement SSE streaming response
+#         pass
+#
+#     return notifications_stream
+
+
 register_social_actor(
     UpdateProfileRequest,
     name="profile",
@@ -1290,6 +1372,8 @@ register_social_actor(
             ExtraRouteSpec("POST", "/meetups/{meetup_id}/comments", _meetup_comments_create_endpoint, response_model=MeetupComment, status_code=201),
             ExtraRouteSpec("PATCH", "/meetup-comments/{comment_id}", _meetup_comments_update_endpoint, response_model=MeetupComment),
             ExtraRouteSpec("DELETE", "/meetup-comments/{comment_id}", _meetup_comments_delete_endpoint),
+            ExtraRouteSpec("GET", "/meetup-notifications", _meetup_notifications_endpoint, response_model=list[MeetupNotificationPublic]),
+            ExtraRouteSpec("GET", "/meetups/spots", _meetups_spots_endpoint, response_model=list[SpotPublic]),
         ),
     ),
 )

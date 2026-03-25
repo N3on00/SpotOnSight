@@ -1,6 +1,6 @@
 import { ComponentBehavior } from '../../core/componentBehavior'
 import { UI_ACTIONS } from '../../core/uiElements'
-import { routeToProfile } from '../../router/routeSpec'
+import { routeToProfile, routeToSocial } from '../../router/routeSpec'
 import { asText } from '../../utils/sanitizers'
 
 function controllerError(app, controllerId) {
@@ -285,5 +285,10 @@ export class MapWorkspaceBehavior extends ComponentBehavior {
     const nextId = asText(userId)
     if (!nextId) return
     void this.navigate(routeToProfile(nextId))
+  }
+
+  createMeetupAtSpot(spot) {
+    this.app.state.map.meetupCreationSpot = spot && typeof spot === 'object' ? spot : null
+    void this.navigate(routeToSocial())
   }
 }

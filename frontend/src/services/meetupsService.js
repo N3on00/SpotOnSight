@@ -11,6 +11,8 @@ function normalizeMeetup(item) {
     description: asText(row.description),
     starts_at: asText(row.starts_at),
     invite_user_ids: uniqueTextList(Array.isArray(row.invite_user_ids) ? row.invite_user_ids : []),
+    spot_id: asText(row.spot_id) || null,
+    spot: row.spot && typeof row.spot === 'object' ? row.spot : null,
     moderation_status: asText(row.moderation_status || 'visible') || 'visible',
     created_at: asText(row.created_at),
     updated_at: asText(row.updated_at),
@@ -66,6 +68,7 @@ export class MeetupsService extends ApiStateService {
         description: asText(payload?.description),
         starts_at: asText(payload?.starts_at),
         invite_user_ids: uniqueTextList(payload?.invite_user_ids || []),
+        spot_id: asText(payload?.spot_id) || null,
       }
       const row = await this.api.request(API_ENDPOINTS.SOCIAL_MEETUPS_CREATE, { body })
       this.clearError()
@@ -85,6 +88,7 @@ export class MeetupsService extends ApiStateService {
         description: asText(payload?.description),
         starts_at: asText(payload?.starts_at),
         invite_user_ids: uniqueTextList(payload?.invite_user_ids || []),
+        spot_id: payload?.spot_id ? asText(payload.spot_id) : payload?.spot_id === null ? null : undefined,
       }
       const row = await this.api.request(API_ENDPOINTS.SOCIAL_MEETUPS_UPDATE, {
         params: { meetupId: resolvedMeetupId },

@@ -17,6 +17,7 @@ from models.schemas import (
     FavoriteRef,
     FollowRef,
     FollowRequestRef,
+    MeetupNotificationPublic,
     ModerationNotificationPublic,
     ModerationReportCreateRequest,
     ModerationReportPublic,
@@ -56,8 +57,9 @@ from .ids import (
     viewer_user_id,
 )
 from .indexes import ensure_indexes
-from .mappers import to_meetup_public, to_spot_public, to_support_ticket_public, to_user_public
-from .mappers import to_moderation_notification_public, to_moderation_report_public, to_moderation_user_public
+from .mappers import to_meetup_notification_public, to_meetup_public, to_moderation_notification_public, to_moderation_report_public
+from .mappers import to_moderation_user_public, to_moderation_user_summary, to_spot_public
+from .mappers import to_support_ticket_public, to_user_public
 from .policies import can_view_private_user, can_view_spot, is_blocked_pair, is_following
 from .spot_workflows import SpotWorkflowExecutor
 
@@ -145,6 +147,33 @@ class SocialActions:
             }
         )
 
+    def _notify_meetup(
+        self,
+        user_id: str,
+        *,
+        meetup_id: str,
+        meetup_title: str,
+        notification_type: str,
+        from_user_id: str,
+        from_username: str,
+        message: str = "",
+    ) -> None:
+        uid = as_text(user_id)
+        if not uid:
+            return
+        self.repos.meetup_notifications.insert_one(
+            {
+                "user_id": uid,
+                "meetup_id": as_text(meetup_id),
+                "meetup_title": as_text(meetup_title),
+                "notification_type": as_text(notification_type),
+                "from_user_id": as_text(from_user_id),
+                "from_username": as_text(from_username),
+                "message": as_text(message),
+                "created_at": self._now(),
+            }
+        )
+
     @staticmethod
     def _severity_weight(severity: str) -> int:
         normalized = as_text(severity).lower()
@@ -163,6 +192,120 @@ class SocialActions:
             total_weight += max(0, int(row.get("weight") or 0))
             count += 1
         return total_weight, count
+
+    def _user_summary(self, user_id: str) -> dict[str, Any] | None:
+        uid = as_text(user_id)
+        if not ObjectId.is_valid(uid):
+            return None
+        user_doc = self.repos.users.find_one({"_id": ObjectId(uid)}, safe_user_projection())
+        summary = to_moderation_user_summary(user_doc)
+        return summary.model_dump() if summary else None
+
+    def _reported_person_id(self, row: dict[str, Any]) -> str:
+        target_type = as_text(row.get("target_type")).lower()
+        if target_type == "user":
+            return as_text(row.get("target_id"))
+        return as_text(row.get("target_owner_user_id"))
+
+    def _target_preview(self, row: dict[str, Any]) -> dict[str, Any] | None:
+        target_type = as_text(row.get("target_type")).lower()
+        target_id = as_text(row.get("target_id"))
+        if not target_id:
+            return None
+
+        try:
+            target, owner_id = self._target_content(target_type, target_id)
+        except HTTPException:
+            return None
+
+        if target_type == "spot":
+            return {
+                "id": target_id,
+                "label": as_text(target.get("title")) or "Untitled spot",
+                "subtitle": as_text(target.get("tags", [])[0]) if isinstance(target.get("tags"), list) and target.get("tags") else "Spot",
+                "body": as_text(target.get("description")),
+                "owner_user_id": owner_id,
+                "spot_id": target_id,
+                "lat": target.get("lat"),
+                "lon": target.get("lon"),
+                "moderation_status": as_text(target.get("moderation_status") or "visible"),
+            }
+        if target_type == "comment":
+            return {
+                "id": target_id,
+                "label": "Spot comment",
+                "subtitle": f"On spot {as_text(target.get('spot_id'))}" if as_text(target.get("spot_id")) else "Comment",
+                "body": as_text(target.get("message")),
+                "owner_user_id": owner_id,
+                "spot_id": as_text(target.get("spot_id")),
+                "moderation_status": as_text(target.get("moderation_status") or "visible"),
+            }
+        if target_type == "meetup":
+            return {
+                "id": target_id,
+                "label": as_text(target.get("title")) or "Untitled meetup",
+                "subtitle": "Meetup",
+                "body": as_text(target.get("description")),
+                "owner_user_id": owner_id,
+                "moderation_status": as_text(target.get("moderation_status") or "visible"),
+            }
+        if target_type == "meetup_comment":
+            return {
+                "id": target_id,
+                "label": "Meetup comment",
+                "subtitle": f"On meetup {as_text(target.get('meetup_id'))}" if as_text(target.get("meetup_id")) else "Comment",
+                "body": as_text(target.get("message")),
+                "owner_user_id": owner_id,
+                "moderation_status": as_text(target.get("moderation_status") or "visible"),
+            }
+        if target_type == "user":
+            return {
+                "id": target_id,
+                "label": as_text(target.get("display_name") or target.get("username")) or "User",
+                "subtitle": f"@{as_text(target.get('username'))}" if as_text(target.get("username")) else "User account",
+                "body": as_text(target.get("bio")),
+                "owner_user_id": owner_id,
+            }
+        return None
+
+    def _moderation_report_metrics(self, row: dict[str, Any]) -> tuple[int, int, int]:
+        target_person_id = self._reported_person_id(row)
+        reporter_id = as_text(row.get("reporter_user_id"))
+
+        target_distinct_reporters = 0
+        target_report_count = 0
+        if target_person_id:
+            related = self.repos.moderation_reports.find_many({
+                "$or": [
+                    {"target_type": "user", "target_id": target_person_id},
+                    {"target_owner_user_id": target_person_id},
+                ]
+            })
+            target_report_count = len(related)
+            target_distinct_reporters = len({as_text(item.get("reporter_user_id")) for item in related if as_text(item.get("reporter_user_id"))})
+
+        reporter_distinct_targets = 0
+        if reporter_id:
+            related = self.repos.moderation_reports.find_many({"reporter_user_id": reporter_id})
+            reporter_distinct_targets = len({self._reported_person_id(item) for item in related if self._reported_person_id(item)})
+
+        return target_distinct_reporters, target_report_count, reporter_distinct_targets
+
+    def _moderation_report_public(self, row: dict[str, Any]) -> ModerationReportPublic:
+        enriched = dict(row)
+        enriched["reporter_user"] = self._user_summary(as_text(row.get("reporter_user_id")))
+        enriched["target_owner_user"] = self._user_summary(as_text(row.get("target_owner_user_id")))
+        if as_text(row.get("target_type")).lower() == "user":
+            enriched["target_user"] = self._user_summary(as_text(row.get("target_id")))
+        else:
+            enriched["target_user"] = enriched.get("target_owner_user")
+        enriched["target_preview"] = self._target_preview(row)
+        (
+            enriched["target_distinct_reporter_count"],
+            enriched["target_report_count"],
+            enriched["reporter_distinct_target_count"],
+        ) = self._moderation_report_metrics(row)
+        return to_moderation_report_public(enriched)
 
     def _recalculate_posting_timeout(self, user_id: str) -> tuple[datetime | None, str]:
         now = self._now()
@@ -385,7 +528,11 @@ class SocialActions:
         me_id = viewer_user_id(current_user)
         if not self.is_admin(current_user) and me_id != target_id and is_blocked_pair(self.repos, me_id, target_id):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-        return to_user_public(target)
+        active_weight = 0
+        recent_count = 0
+        if self.is_admin(current_user):
+            active_weight, recent_count = self._recent_strike_metrics(target_id)
+        return to_user_public(target, active_strike_weight=active_weight, recent_strike_count=recent_count)
 
     def list_visible_spots(self, current_user: dict[str, Any]) -> list[SpotPublic]:
         return self.spot_workflows.list_visible_spots(current_user)
@@ -525,7 +672,19 @@ class SocialActions:
         if contact_email and "@" not in contact_email:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid contact email format")
         now = datetime.now(UTC)
-        doc = {"user_id": me_id, "category": req.category, "subject": as_text(req.subject), "message": as_text(req.message), "page": as_text(req.page), "contact_email": contact_email, "allow_contact": bool(req.allow_contact), "status": "open", "created_at": now, "updated_at": now}
+        doc = {
+            "user_id": me_id,
+            "category": req.category,
+            "subject": as_text(req.subject),
+            "message": as_text(req.message),
+            "page": as_text(req.page),
+            "contact_email": contact_email,
+            "allow_contact": bool(req.allow_contact),
+            "technical_details": as_text(req.technical_details),
+            "status": "open",
+            "created_at": now,
+            "updated_at": now,
+        }
         inserted_id = self.repos.support_tickets.insert_one(doc)
         row = self.repos.support_tickets.find_one({"_id": ObjectId(inserted_id)})
         if not row:
@@ -597,7 +756,7 @@ class SocialActions:
         if normalized and normalized != "all":
             query["status"] = normalized
         rows = list(self.repos.moderation_reports.collection.find(query).sort("created_at", -1).limit(limit))
-        return [to_moderation_report_public(row) for row in rows]
+        return [self._moderation_report_public(row) for row in rows]
 
     def _set_target_content_status(self, target_type: str, target_id: str, moderation_status: str) -> None:
         normalized = as_text(target_type).lower()
@@ -691,7 +850,7 @@ class SocialActions:
         updated = self.repos.moderation_reports.find_one({"_id": ObjectId(report_id)})
         if not updated:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Moderation report update failed")
-        return to_moderation_report_public(updated)
+        return self._moderation_report_public(updated)
 
     def list_moderated_users(self, query: str, limit: int) -> list[ModerationUserPublic]:
         regex = re.compile(re.escape(as_text(query)), re.IGNORECASE) if as_text(query) else None
@@ -785,10 +944,41 @@ class SocialActions:
         me_id = self.me_id(current_user)
         invite_user_ids = [uid for uid in dict.fromkeys(req.invite_user_ids) if ObjectId.is_valid(uid)]
         now = datetime.now(UTC)
-        doc = {"host_user_id": me_id, "title": as_text(req.title), "description": as_text(req.description), "starts_at": req.starts_at, "invite_user_ids": invite_user_ids, "moderation_status": "visible", "created_at": now, "updated_at": now}
+
+        spot_id = None
+        spot_doc = None
+        if req.spot_id:
+            spot = self.spot_or_404(req.spot_id)
+            self.require_spot_visible(spot, current_user, "Cannot create meetup at this spot")
+            spot_id = serialize_id(spot.get("_id"))
+            spot_doc = to_spot_public(spot).model_dump()
+
+        doc = {
+            "host_user_id": me_id,
+            "title": as_text(req.title),
+            "description": as_text(req.description),
+            "starts_at": req.starts_at,
+            "invite_user_ids": invite_user_ids,
+            "spot_id": spot_id,
+            "moderation_status": "visible",
+            "created_at": now,
+            "updated_at": now,
+        }
         inserted_id = self.repos.meetups.insert_one(doc)
         meetup_id = serialize_id(ObjectId(inserted_id))
         self.sync_meetup_invites(meetup_id, me_id, invite_user_ids)
+
+        for invitee_id in invite_user_ids:
+            self._notify_meetup(
+                user_id=invitee_id,
+                meetup_id=meetup_id,
+                meetup_title=req.title,
+                notification_type="invite_received",
+                from_user_id=me_id,
+                from_username=as_text(current_user.get("username")),
+                message=f"You've been invited to: {req.title}",
+            )
+
         created = self.repos.meetups.find_one({"_id": ObjectId(inserted_id)})
         if not created:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Meetup creation failed")
@@ -840,6 +1030,13 @@ class SocialActions:
             updates["starts_at"] = req.starts_at
         if req.invite_user_ids is not None:
             updates["invite_user_ids"] = [uid for uid in dict.fromkeys(req.invite_user_ids) if ObjectId.is_valid(uid)]
+        if req.spot_id is not None:
+            if req.spot_id:
+                spot = self.spot_or_404(req.spot_id)
+                self.require_spot_visible(spot, current_user, "Cannot set this spot for meetup")
+                updates["spot_id"] = serialize_id(spot.get("_id"))
+            else:
+                updates["spot_id"] = None
         self.repos.meetups.update_fields({"_id": existing.get("_id")}, updates)
         updated = self.repos.meetups.find_one({"_id": existing.get("_id")})
         if not updated:
@@ -873,6 +1070,19 @@ class SocialActions:
         now = datetime.now(UTC)
         self.repos.meetup_invites.update_fields({"meetup_id": canonical_meetup_id, "user_id": me_id}, {"status": req.status, "response_comment": as_text(req.comment), "responded_at": now})
         row = self.repos.meetup_invites.find_one({"meetup_id": canonical_meetup_id, "user_id": me_id})
+
+        host_user_id = as_text(meetup.get("host_user_id"))
+        if host_user_id:
+            self._notify_meetup(
+                user_id=host_user_id,
+                meetup_id=canonical_meetup_id,
+                meetup_title=as_text(meetup.get("title")),
+                notification_type=f"invite_{req.status}",
+                from_user_id=me_id,
+                from_username=as_text(current_user.get("username")),
+                message=f"{as_text(current_user.get('username'))} has {req.status} your meetup invitation",
+            )
+
         return MeetupInviteRef(meetup_id=as_text(row.get("meetup_id")), user_id=as_text(row.get("user_id")), status=normalize_invite_status(row.get("status")), response_comment=as_text(row.get("response_comment")), created_at=row.get("created_at") or now, responded_at=row.get("responded_at"))
 
     def list_meetup_comments(self, meetup_id: str, current_user: dict[str, Any]) -> list[MeetupComment]:
@@ -922,3 +1132,8 @@ class SocialActions:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this comment")
         self.repos.meetup_comments.collection.delete_one({"_id": ObjectId(comment_id)})
         return {"ok": True, "deleted": True}
+
+    def list_meetup_notifications(self, current_user: dict[str, Any]) -> list[MeetupNotificationPublic]:
+        me_id = self.me_id(current_user)
+        rows = self.sorted_rows(self.repos.meetup_notifications.collection, {"user_id": me_id}, 100)
+        return [to_meetup_notification_public(row) for row in rows]

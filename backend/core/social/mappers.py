@@ -4,10 +4,13 @@ from datetime import UTC, datetime
 from typing import Any
 
 from models.schemas import (
+    MeetupNotificationPublic,
     MeetupPublic,
     ModerationNotificationPublic,
     ModerationReportPublic,
+    ModerationTargetPreview,
     ModerationUserPublic,
+    ModerationUserSummary,
     SpotPublic,
     SupportTicketPublic,
     UserPublic,
@@ -16,7 +19,7 @@ from models.schemas import (
 from .ids import as_float, as_text, normalize_id_list, normalize_social_accounts, serialize_id, spot_owner_id, spot_visibility
 
 
-def to_user_public(doc: dict[str, Any]) -> UserPublic:
+def to_user_public(doc: dict[str, Any], *, active_strike_weight: int = 0, recent_strike_count: int = 0) -> UserPublic:
     return UserPublic(
         id=serialize_id(doc.get("_id")),
         username=as_text(doc.get("username")),
@@ -27,7 +30,44 @@ def to_user_public(doc: dict[str, Any]) -> UserPublic:
         social_accounts=normalize_social_accounts(doc.get("social_accounts")),
         follow_requires_approval=bool(doc.get("follow_requires_approval", False)),
         is_admin=bool(doc.get("is_admin", False)),
+        account_status=as_text(doc.get("account_status")),
+        account_status_reason=as_text(doc.get("account_status_reason")),
+        posting_timeout_until=doc.get("posting_timeout_until"),
+        active_strike_weight=max(0, int(active_strike_weight or 0)),
+        recent_strike_count=max(0, int(recent_strike_count or 0)),
         created_at=doc.get("created_at") or datetime.now(UTC),
+    )
+
+
+def to_moderation_user_summary(doc: dict[str, Any] | None) -> ModerationUserSummary | None:
+    if not doc:
+        return None
+    return ModerationUserSummary(
+        id=serialize_id(doc.get("_id")),
+        username=as_text(doc.get("username")),
+        display_name=as_text(doc.get("display_name") or doc.get("username")),
+        email=as_text(doc.get("email")),
+        is_admin=bool(doc.get("is_admin", False)),
+    )
+
+
+def to_moderation_target_preview(doc: dict[str, Any] | None) -> ModerationTargetPreview | None:
+    if not doc:
+        return None
+    raw_lat = doc.get("lat")
+    raw_lon = doc.get("lon")
+    lat = as_float(raw_lat, 0.0) if raw_lat is not None else None
+    lon = as_float(raw_lon, 0.0) if raw_lon is not None else None
+    return ModerationTargetPreview(
+        id=as_text(doc.get("id")),
+        label=as_text(doc.get("label")),
+        subtitle=as_text(doc.get("subtitle")),
+        body=as_text(doc.get("body")),
+        owner_user_id=as_text(doc.get("owner_user_id")),
+        spot_id=as_text(doc.get("spot_id")),
+        lat=lat,
+        lon=lon,
+        moderation_status=as_text(doc.get("moderation_status")),
     )
 
 
@@ -63,6 +103,7 @@ def to_support_ticket_public(doc: dict[str, Any]) -> SupportTicketPublic:
         page=as_text(doc.get("page")),
         contact_email=as_text(doc.get("contact_email")),
         allow_contact=bool(doc.get("allow_contact", False)),
+        technical_details=as_text(doc.get("technical_details")),
         status=status_value,
         created_at=doc.get("created_at") or datetime.now(UTC),
     )
@@ -79,9 +120,25 @@ def to_meetup_public(doc: dict[str, Any]) -> MeetupPublic:
         description=as_text(doc.get("description")),
         starts_at=starts_at,
         invite_user_ids=normalize_id_list(doc.get("invite_user_ids")),
+        spot_id=as_text(doc.get("spot_id")) or None,
+        spot=to_spot_public(doc.get("spot")) if doc.get("spot") else None,
         moderation_status=as_text(doc.get("moderation_status") or "visible").lower() if as_text(doc.get("moderation_status") or "visible").lower() in {"visible", "flagged", "hidden"} else "visible",
         created_at=created_at,
         updated_at=updated_at,
+    )
+
+
+def to_meetup_notification_public(doc: dict[str, Any]) -> MeetupNotificationPublic:
+    return MeetupNotificationPublic(
+        id=serialize_id(doc.get("_id")),
+        user_id=as_text(doc.get("user_id")),
+        meetup_id=as_text(doc.get("meetup_id")),
+        meetup_title=as_text(doc.get("meetup_title")),
+        notification_type=as_text(doc.get("notification_type")),
+        from_user_id=as_text(doc.get("from_user_id")),
+        from_username=as_text(doc.get("from_username")),
+        message=as_text(doc.get("message")),
+        created_at=doc.get("created_at") or datetime.now(UTC),
     )
 
 
@@ -104,6 +161,13 @@ def to_moderation_report_public(doc: dict[str, Any]) -> ModerationReportPublic:
         created_at=doc.get("created_at") or datetime.now(UTC),
         reviewed_at=doc.get("reviewed_at"),
         reviewed_by=as_text(doc.get("reviewed_by")),
+        reporter_user=to_moderation_user_summary(doc.get("reporter_user")),
+        target_owner_user=to_moderation_user_summary(doc.get("target_owner_user")),
+        target_user=to_moderation_user_summary(doc.get("target_user")),
+        target_preview=to_moderation_target_preview(doc.get("target_preview")),
+        target_distinct_reporter_count=max(0, int(doc.get("target_distinct_reporter_count") or 0)),
+        target_report_count=max(0, int(doc.get("target_report_count") or 0)),
+        reporter_distinct_target_count=max(0, int(doc.get("reporter_distinct_target_count") or 0)),
     )
 
 

@@ -17,6 +17,7 @@ const props = defineProps({
   canDelete: { type: Boolean, default: true },
   canShare: { type: Boolean, default: true },
   canReport: { type: Boolean, default: true },
+  showCreateMeetup: { type: Boolean, default: true },
   onClose: { type: Function, required: true },
   onEdit: { type: Function, default: null },
   onDelete: { type: Function, default: null },
@@ -38,6 +39,8 @@ const props = defineProps({
   onDeleteComment: { type: Function, default: null },
   onReportComment: { type: Function, default: null },
 })
+
+const emit = defineEmits(['create-meetup-at-spot'])
 
 const shareText = ref('')
 const reportOpen = ref(false)
@@ -98,6 +101,10 @@ async function submitReport(payload) {
   } finally {
     reportBusy.value = false
   }
+}
+
+function createMeetupAtSpot() {
+  emit('create-meetup-at-spot', props.spot)
 }
 
 </script>
@@ -180,6 +187,13 @@ async function submitReport(payload) {
             :label="isFavorite ? 'Unlike' : 'Like'"
             :disabled="favoriteBusy || !canFavorite"
             @click="toggleFavorite"
+          />
+          <ActionButton
+            v-if="showCreateMeetup"
+            class-name="btn btn-outline-primary mobile-compact-action"
+            icon="bi-calendar-plus"
+            label="Create Meetup"
+            @click="createMeetupAtSpot"
           />
           <ActionButton
             v-if="canReport && typeof props.onReport === 'function'"

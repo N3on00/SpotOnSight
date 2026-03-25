@@ -25,6 +25,7 @@ export function buildSocialMeetupsProps({ app }) {
     meetups: app.state.social.meetups,
     invites: app.state.social.meetupInvites,
     people: [...(app.state.social.followers || []), ...(app.state.social.following || [])],
+    preselectedSpot: app.state.map.meetupCreationSpot,
     currentUserId: app.state.session.user?.id || '',
     busy: app.state.loading.socialMeetups || app.state.loading.socialMeetupMutate,
     onLoadUserProfile: async (userId) => app.controller('users').profile(userId),
@@ -39,6 +40,7 @@ export function buildSocialMeetupsProps({ app }) {
         loadingKey: 'socialMeetupMutate',
         task: async () => {
           created = await ctrl.create(payload)
+          app.state.map.meetupCreationSpot = null
           await refreshMeetups()
         },
         errorTitle: 'Meetup creation failed',

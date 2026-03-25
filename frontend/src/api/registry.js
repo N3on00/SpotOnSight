@@ -78,6 +78,7 @@ export const API_ENDPOINTS = Object.freeze({
   SOCIAL_FOLLOWING_LIST: 'social.following.list',
 
   SOCIAL_SUPPORT_TICKETS_CREATE: 'social.support.tickets.create',
+  SUPPORT_ADMIN_TICKETS_LIST: 'support.admin.tickets.list',
   SOCIAL_REPORTS_CREATE: 'social.reports.create',
   SOCIAL_NOTIFICATIONS_LIST: 'social.notifications.list',
   ADMIN_REPORTS_LIST: 'admin.reports.list',
@@ -100,6 +101,8 @@ export const API_ENDPOINTS = Object.freeze({
   SOCIAL_MEETUP_COMMENTS_CREATE: 'social.meetup.comments.create',
   SOCIAL_MEETUP_COMMENTS_UPDATE: 'social.meetup.comments.update',
   SOCIAL_MEETUP_COMMENTS_DELETE: 'social.meetup.comments.delete',
+  SOCIAL_MEETUP_NOTIFICATIONS_LIST: 'social.meetup.notifications.list',
+  SOCIAL_MEETUPS_SPOTS: 'social.meetups.spots',
 })
 
 registerApiEndpoint({
@@ -309,6 +312,12 @@ registerApiEndpoint({
 })
 
 registerApiEndpoint({
+  key: API_ENDPOINTS.SUPPORT_ADMIN_TICKETS_LIST,
+  method: 'GET',
+  path: '/social/support/tickets/admin/all',
+})
+
+registerApiEndpoint({
   key: API_ENDPOINTS.SOCIAL_COMMENTS_LIST,
   method: 'GET',
   path: '/social/spots/{spotId}/comments',
@@ -390,6 +399,18 @@ registerApiEndpoint({
   key: API_ENDPOINTS.SOCIAL_MEETUP_COMMENTS_DELETE,
   method: 'DELETE',
   path: '/social/meetup-comments/{commentId}',
+})
+
+registerApiEndpoint({
+  key: API_ENDPOINTS.SOCIAL_MEETUP_NOTIFICATIONS_LIST,
+  method: 'GET',
+  path: '/social/meetup-notifications',
+})
+
+registerApiEndpoint({
+  key: API_ENDPOINTS.SOCIAL_MEETUPS_SPOTS,
+  method: 'GET',
+  path: '/social/meetups/spots',
 })
 
 export function getApiEndpointBinding(key) {
