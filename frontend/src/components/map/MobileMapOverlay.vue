@@ -608,22 +608,22 @@ function clearSearch() {
   position: fixed;
   inset: 0;
   z-index: 1150;
-  display: flex;
-  flex-direction: column;
   background: var(--app-body-bg);
 }
 
+.fullscreen-map__content {
+  position: absolute;
+  inset: 0;
+}
+
 .fullscreen-map__toolbar {
-  flex-shrink: 0;
+  z-index: 100;
   background: var(--app-surface);
   backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--soft-line);
   padding: 0.6rem 0.75rem;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  position: relative;
-  z-index: 10;
 }
 
 .fullscreen-map__toolbar-row {
@@ -1186,31 +1186,39 @@ function clearSearch() {
   transform: translateY(-8px);
 }
 
+.fullscreen-map__toolbar {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  right: 0.75rem;
+  z-index: 100;
+  background: var(--app-surface);
+  backdrop-filter: blur(12px);
+  padding: 0.6rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  border-radius: var(--bs-border-radius-lg);
+  border: 1px solid var(--soft-line);
+  box-shadow: var(--surface-shadow);
+  max-height: calc(100vh - 1.5rem);
+  overflow-y: auto;
+}
+
+.fullscreen-map__results {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  right: 0.75rem;
+  max-height: 45vh;
+  border-radius: var(--bs-border-radius-lg);
+  border: 1px solid var(--soft-line);
+  box-shadow: var(--surface-shadow);
+}
+
 @media (min-width: 768px) {
-  .fullscreen-map {
-    flex-direction: row;
-    align-items: stretch;
-  }
-
   .fullscreen-map__toolbar {
-    position: absolute;
-    top: 0.75rem;
-    left: 0.75rem;
-    z-index: 100;
     width: 340px;
-    max-height: calc(100vh - 1.5rem);
-    overflow-y: auto;
-    border-radius: var(--bs-border-radius-lg);
-    border: 1px solid var(--soft-line);
-    box-shadow: var(--surface-shadow);
-  }
-
-  .fullscreen-map__toolbar-row {
-    flex-wrap: nowrap;
-  }
-
-  .fullscreen-map__content {
-    flex: 1;
   }
 
   .fullscreen-map__results {
@@ -1219,8 +1227,6 @@ function clearSearch() {
     bottom: 0.75rem;
     width: 380px;
     max-height: 60vh;
-    border-radius: var(--bs-border-radius-lg);
-    border: 1px solid var(--soft-line);
   }
 }
 
