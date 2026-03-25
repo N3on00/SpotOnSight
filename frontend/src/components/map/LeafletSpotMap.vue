@@ -293,6 +293,15 @@ onMounted(() => {
   syncMarkers()
   updateEdgeHints()
 
+  const resizeObserver = new ResizeObserver(() => {
+    if (map && !isDisposed) {
+      map.invalidateSize({ pan: false })
+    }
+  })
+  if (host.value) {
+    resizeObserver.observe(host.value)
+  }
+
   setTimeout(() => {
     if (map && !isDisposed) {
       map.invalidateSize({ pan: false })
@@ -360,6 +369,9 @@ onBeforeUnmount(() => {
     map = null
   }
   markersLayer = null
+  if (typeof resizeObserver !== 'undefined' && resizeObserver) {
+    resizeObserver.disconnect()
+  }
 })
 
 watch(
