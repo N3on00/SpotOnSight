@@ -656,8 +656,7 @@ function clearSearch() {
     left: auto;
     right: auto;
     flex: 0 0 auto;
-    margin: 0.75rem;
-    margin-top: 0;
+    margin: 1.5rem 0 0 0.75rem;
     width: auto;
     max-width: 400px;
     max-height: none;
