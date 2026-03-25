@@ -293,6 +293,12 @@ onMounted(() => {
   syncMarkers()
   updateEdgeHints()
 
+  setTimeout(() => {
+    if (map && !isDisposed) {
+      map.invalidateSize({ pan: false })
+    }
+  }, 0)
+
   map.on('wheel', () => {
     wheelAt = Date.now()
   })
