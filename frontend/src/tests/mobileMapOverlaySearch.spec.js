@@ -113,7 +113,7 @@ function createWrapper(props = {}) {
               </div>
             </div>
           `,
-          props: ['spots', 'locationResults', 'activeLocation', 'query', 'isOpen'],
+          props: ['spots', 'locationResults', 'activeLocation', 'query', 'isOpen', 'anchor', 'anchorElement'],
           emits: ['select-spot', 'select-location', 'clear-location'],
           computed: {
             spotSuggestions() {

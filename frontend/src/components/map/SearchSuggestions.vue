@@ -1,20 +1,87 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps({
   spots: { type: Array, default: () => [] },
   locationResults: { type: Array, default: () => [] },
   activeLocation: { type: Object, default: null },
   query: { type: String, default: '' },
-  isOpen: { type: Boolean, default: false }
+  isOpen: { type: Boolean, default: false },
+  anchor: { type: Object, default: null },
+  anchorElement: { type: Object, default: null },
 })
 
 const emit = defineEmits(['select-spot', 'select-location', 'clear-location'])
-
-const containerRef = ref(null)
+const anchoredStyle = ref(null)
 
 const isVisible = computed(() => {
   return props.isOpen
+})
+
+const dropdownStyle = computed(() => {
+  if (anchoredStyle.value) return anchoredStyle.value
+
+  const anchor = props.anchor && typeof props.anchor === 'object' ? props.anchor : null
+  if (!anchor) return null
+
+  const top = Number(anchor.top)
+  const left = Number(anchor.left)
+  const width = Number(anchor.width)
+
+  if (!Number.isFinite(top) || !Number.isFinite(left) || !Number.isFinite(width)) {
+    return null
+  }
+
+  return {
+    top: `${top + 8}px`,
+    left: `${left}px`,
+    width: `${width}px`,
+    maxWidth: `${width}px`,
+    transform: 'none',
+  }
+})
+
+function syncAnchorPosition() {
+  const element = props.anchorElement
+  if (!element || typeof element.getBoundingClientRect !== 'function') {
+    anchoredStyle.value = null
+    return
+  }
+
+  const rect = element.getBoundingClientRect()
+  if (!Number.isFinite(rect.top) || !Number.isFinite(rect.left) || !Number.isFinite(rect.width)) {
+    anchoredStyle.value = null
+    return
+  }
+
+  anchoredStyle.value = {
+    top: `${rect.bottom + 8}px`,
+    left: `${rect.left}px`,
+    width: `${rect.width}px`,
+    maxWidth: `${rect.width}px`,
+    transform: 'none',
+  }
+}
+
+watch(
+  () => [props.isOpen, props.anchor, props.anchorElement],
+  () => {
+    syncAnchorPosition()
+  },
+  { immediate: true },
+)
+
+onMounted(() => {
+  if (typeof window === 'undefined') return
+  window.addEventListener('resize', syncAnchorPosition)
+  window.addEventListener('scroll', syncAnchorPosition, true)
+  syncAnchorPosition()
+})
+
+onBeforeUnmount(() => {
+  if (typeof window === 'undefined') return
+  window.removeEventListener('resize', syncAnchorPosition)
+  window.removeEventListener('scroll', syncAnchorPosition, true)
 })
 
 const spotSuggestions = computed(() => {
@@ -49,8 +116,8 @@ function handleClearLocation() {
     <Transition name="dropdown-fade">
       <div 
         v-if="isVisible && (spotSuggestions.length > 0 || locationResults.length > 0 || activeLocation)"
-        ref="containerRef"
         class="search-suggestions-widget"
+        :style="dropdownStyle"
       >
         <div v-if="spotSuggestions.length > 0" class="search-suggestions-widget__section">
           <div class="search-suggestions-widget__title">

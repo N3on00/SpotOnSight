@@ -61,7 +61,6 @@ const filterPanelOpen = ref(false)
 const resultsPanelOpen = ref(false)
 const hasSearched = ref(false)
 const searchBarRef = ref(null)
-
 const searchBarPosition = computed(() => {
   if (!searchBarRef.value) return null
   const rect = searchBarRef.value.getBoundingClientRect()
@@ -234,6 +233,7 @@ function clearSearch() {
   searchText.value = ''
   hasSearched.value = false
 }
+
 </script>
 
 <template>
@@ -284,6 +284,8 @@ function clearSearch() {
             :active-location="activeLocation"
             :query="searchQuery"
             :is-open="searchFocus || dropdownHover"
+            :anchor="searchBarPosition"
+            :anchor-element="searchBarRef"
             @select-spot="selectSpotResult"
             @select-location="selectLocation"
             @clear-location="clearLocation"
