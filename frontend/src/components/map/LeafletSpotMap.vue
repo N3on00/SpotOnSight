@@ -27,6 +27,11 @@ const EDGE_HINT_MIN_SPACING = 46
 const MIN_MAP_ZOOM = 2
 const MAX_MAP_ZOOM = 18
 const HEIGHT_AT_ZOOM_ZERO = 80000000
+const FREE_SPIN_HEIGHT = 2200000
+const ZOOM_STEP = 2
+
+const orientationHeading = ref(0)
+const orientationPitch = ref(-CesiumMath.PI_OVER_TWO)
 
 const props = defineProps({
   spots: { type: Array, default: () => [] },
@@ -62,6 +67,14 @@ function normalizedZoom(value) {
 
 function zoomToCameraHeight(zoom) {
   return HEIGHT_AT_ZOOM_ZERO / (2 ** normalizedZoom(zoom))
+}
+
+function safeCameraHeight(value) {
+  const minHeight = 1200
+  const maxHeight = 45000000
+  const next = Number(value)
+  if (!Number.isFinite(next)) return zoomToCameraHeight(props.zoom)
+  return clamp(next, minHeight, maxHeight)
 }
 
 function cameraHeightToZoom(height) {
@@ -220,6 +233,29 @@ function emitViewportChange() {
   )
 }
 
+function syncOrientationState() {
+  if (!viewer || isDisposed) return
+  const heading = Number(viewer.camera.heading)
+  const pitch = Number(viewer.camera.pitch)
+  orientationHeading.value = Number.isFinite(heading) ? heading : 0
+  orientationPitch.value = Number.isFinite(pitch) ? pitch : -CesiumMath.PI_OVER_TWO
+}
+
+function freeSpinEnabled() {
+  if (!viewer || isDisposed) return false
+  return Number(viewer.camera.positionCartographic?.height || 0) >= FREE_SPIN_HEIGHT
+}
+
+function updateInteractionMode() {
+  if (!viewer || isDisposed) return
+  const controller = viewer.scene.screenSpaceCameraController
+  const freeSpin = freeSpinEnabled()
+
+  controller.enableTilt = freeSpin
+  controller.enableLook = freeSpin
+  viewer.camera.constrainedAxis = freeSpin ? undefined : Cartesian3.UNIT_Z
+}
+
 function flyToPoint(lat, lon, zoom = props.zoom, immediate = false) {
   if (!viewer || isDisposed) return
 
@@ -286,9 +322,9 @@ function syncMarkers() {
       height: String(firstImageSource(spot?.images) || '').trim() ? 68 : 50,
       verticalOrigin: VerticalOrigin.BOTTOM,
       heightReference: HeightReference.CLAMP_TO_GROUND,
-      disableDepthTestDistance: Number.POSITIVE_INFINITY,
       scaleByDistance: undefined,
-      eyeOffset: new Cartesian3(0, 0, -8),
+      pixelOffset: new Cartesian2(0, -8),
+      eyeOffset: new Cartesian3(0, 0, -16),
     })
 
     const entity = viewer.entities.add({
@@ -385,8 +421,38 @@ function adjustZoom(delta) {
   const center = cameraCenterCartographic()
   if (!center) return
 
-  const nextZoom = normalizedZoom(cameraHeightToZoom(viewer.camera.positionCartographic.height) + delta)
+  const height = safeCameraHeight(viewer.camera.positionCartographic?.height)
+  const nextZoom = normalizedZoom(cameraHeightToZoom(height) + (delta * ZOOM_STEP))
   flyToPoint(CesiumMath.toDegrees(center.latitude), CesiumMath.toDegrees(center.longitude), nextZoom)
+}
+
+function resetRotation() {
+  if (!viewer || isDisposed) return
+  const center = cameraCenterCartographic()
+  if (!center) return
+
+  const currentHeight = safeCameraHeight(viewer.camera.positionCartographic?.height)
+
+  suppressViewportEmit = true
+  viewer.camera.flyTo({
+    destination: Cartesian3.fromRadians(center.longitude, center.latitude, currentHeight),
+    orientation: {
+      heading: 0,
+      pitch: -CesiumMath.PI_OVER_TWO,
+      roll: 0,
+    },
+    duration: 0.65,
+    complete: () => {
+      suppressViewportEmit = false
+      syncOrientationState()
+      updateInteractionMode()
+      updateEdgeHints()
+      emitViewportChange()
+    },
+    cancel: () => {
+      suppressViewportEmit = false
+    },
+  })
 }
 
 function selectEdgeHint(spot) {
@@ -469,22 +535,29 @@ onMounted(() => {
 
   viewer.scene.globe.enableLighting = false
   viewer.scene.globe.baseColor = Color.fromCssColorString('#dbe7d3')
-  viewer.scene.globe.depthTestAgainstTerrain = false
+  viewer.scene.globe.depthTestAgainstTerrain = true
   viewer.scene.skyBox.show = false
   viewer.scene.sun.show = false
   viewer.scene.moon.show = false
   viewer.scene.fxaa = true
   viewer.cesiumWidget.creditContainer.style.display = 'none'
-  viewer.scene.screenSpaceCameraController.enableTilt = true
-  viewer.scene.screenSpaceCameraController.enableLook = true
+  viewer.scene.screenSpaceCameraController.zoomFactor = 10
   viewer.scene.screenSpaceCameraController.minimumZoomDistance = 1200
   viewer.scene.screenSpaceCameraController.maximumZoomDistance = 45000000
   viewer.scene.camera.percentageChanged = 0.002
-  viewer.camera.constrainedAxis = undefined
+  syncOrientationState()
+  updateInteractionMode()
 
   bindPointerHandlers()
 
+  viewer.camera.changed.addEventListener(() => {
+    syncOrientationState()
+    updateInteractionMode()
+  })
+
   viewer.camera.moveEnd.addEventListener(() => {
+    syncOrientationState()
+    updateInteractionMode()
     updateEdgeHints()
     emitViewportChange()
   })
@@ -566,6 +639,18 @@ watch(
     <div class="leaflet-map cesium-map" ref="host" />
 
     <div class="cesium-map__controls" aria-label="Map zoom controls">
+      <div class="cesium-map__compass" :class="{ 'cesium-map__compass--active': freeSpinEnabled() }" aria-label="Map orientation indicator">
+        <div class="cesium-map__compass-ring" :style="{ transform: `rotate(${(-orientationHeading * 180) / Math.PI}deg)` }">
+          <span class="cesium-map__compass-label cesium-map__compass-label--north">N</span>
+          <span class="cesium-map__compass-label cesium-map__compass-label--east">E</span>
+          <span class="cesium-map__compass-label cesium-map__compass-label--south">S</span>
+          <span class="cesium-map__compass-label cesium-map__compass-label--west">W</span>
+          <span class="cesium-map__compass-needle"></span>
+        </div>
+      </div>
+      <button class="cesium-map__control" type="button" aria-label="Reset rotation" @click.stop="resetRotation">
+        <i class="bi bi-compass"></i>
+      </button>
       <button class="cesium-map__control" type="button" aria-label="Zoom in" @click.stop="adjustZoom(1)">
         <i class="bi bi-plus-lg"></i>
       </button>
