@@ -9,6 +9,7 @@ function applyMobileOverlayHeight(value = 0) {
 export function useResponsiveTopNav({ show, notificationsOpen, userMenuOpen, routePath }) {
   const isMobile = ref(false)
   const compactBySpace = ref(false)
+  const isMobileBottomNav = ref(false)
   const navRoot = ref(null)
   const panelRoot = ref(null)
   const primaryLinksRoot = ref(null)
@@ -70,6 +71,7 @@ export function useResponsiveTopNav({ show, notificationsOpen, userMenuOpen, rou
   function updateViewportMode() {
     if (typeof window === 'undefined') return
     isMobile.value = window.matchMedia('(max-width: 900px)').matches
+    isMobileBottomNav.value = isMobile.value
     updateCompactMode()
     syncNotificationAnchor()
   }
@@ -99,6 +101,7 @@ export function useResponsiveTopNav({ show, notificationsOpen, userMenuOpen, rou
 
   return {
     isMobile,
+    isMobileBottomNav,
     compactBySpace,
     navRoot,
     panelRoot,

@@ -4,11 +4,13 @@ import ActionButton from '../common/ActionButton.vue'
 const props = defineProps({
   entries: { type: Array, default: () => [] },
   navIconOnly: { type: Boolean, default: false },
+  mobileBottomNav: { type: Boolean, default: false },
   isActive: { type: Function, required: true },
   onOpen: { type: Function, required: true },
 })
 
 function showEntryLabel(entry) {
+  if (props.mobileBottomNav) return props.isActive(entry)
   return !props.navIconOnly || props.isActive(entry)
 }
 
@@ -18,15 +20,21 @@ function entryClassName(entry) {
     ? 'btn btn-primary app-top-nav__link app-top-nav__link--active'
     : 'btn btn-outline-secondary app-top-nav__link'
 
-  if (props.navIconOnly && !active) {
-    return `${base} app-top-nav__link--collapsed`
+  const classes = [base]
+
+  if (props.mobileBottomNav) {
+    classes.push('app-top-nav__link--mobile')
   }
 
-  return base
+  if (props.navIconOnly && !active) {
+    classes.push('app-top-nav__link--collapsed')
+  }
+
+  return classes.join(' ')
 }
 
 function entryContentClass(entry) {
-  return props.navIconOnly && !props.isActive(entry)
+  return (props.navIconOnly || props.mobileBottomNav) && !props.isActive(entry)
     ? 'app-top-nav__link-content app-top-nav__link-content--collapsed'
     : 'app-top-nav__link-content'
 }
@@ -39,12 +47,19 @@ function entryLabelClass(entry) {
 </script>
 
 <template>
-  <div class="app-top-nav__links app-top-nav__links--primary" :class="{ 'app-top-nav__links--icon-only': navIconOnly }">
+  <div
+    class="app-top-nav__links app-top-nav__links--primary"
+    :class="{
+      'app-top-nav__links--icon-only': navIconOnly,
+      'app-top-nav__links--mobile': mobileBottomNav,
+    }"
+  >
     <ActionButton
       v-for="entry in entries"
       :key="`app-nav-${entry.key}`"
       :class-name="entryClassName(entry)"
       :aria-label="entry.label"
+      :data-active="isActive(entry) ? 'true' : 'false'"
       @click="onOpen(entry)"
     >
       <span :class="entryContentClass(entry)">

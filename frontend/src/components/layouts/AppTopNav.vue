@@ -101,7 +101,12 @@ const userMenuRouteActive = computed(() => {
   return userMenuRouteNames.has(String(route.name || ''))
 })
 
-const userNavExpanded = computed(() => !navIconOnly.value || userMenuOpen.value || userMenuRouteActive.value)
+const userNavExpanded = computed(() => {
+  if (isMobileBottomNav.value) {
+    return false
+  }
+  return !navIconOnly.value || userMenuRouteActive.value
+})
 
 const userTriggerClass = computed(() => {
   const classes = ['app-top-nav__tool-btn', 'app-top-nav__user-trigger-btn']
@@ -131,7 +136,7 @@ const show = computed(() => {
 
 const navIconOnly = computed(() => compactBySpace.value)
 
-const showUserNavName = computed(() => userNavExpanded.value)
+const showUserNavName = computed(() => userNavExpanded.value && !isMobileBottomNav.value)
 
 const userAvatar = computed(() => {
   const raw = String(me.value?.avatar_image || '').trim()
@@ -175,6 +180,7 @@ watch(
 
 const {
   isMobile,
+  isMobileBottomNav,
   compactBySpace,
   navRoot,
   panelRoot,
@@ -319,16 +325,22 @@ function notificationCategory(entry) {
 
       <div class="app-top-nav__center">
         <div ref="primaryLinksRoot">
-          <TopNavLinks :entries="primaryEntries" :nav-icon-only="navIconOnly" :is-active="isActive" :on-open="open" />
+          <TopNavLinks
+            :entries="primaryEntries"
+            :nav-icon-only="navIconOnly"
+            :mobile-bottom-nav="isMobileBottomNav"
+            :is-active="isActive"
+            :on-open="open"
+          />
         </div>
       </div>
 
       <div class="app-top-nav__tools">
         <ActionButton
-          :class-name="notificationsOpen ? 'btn btn-primary app-top-nav__tool-btn' : 'btn btn-outline-secondary app-top-nav__tool-btn'"
+          :class-name="notificationsOpen ? 'btn btn-primary app-top-nav__tool-btn app-top-nav__tool-btn--icon-only' : 'btn btn-outline-secondary app-top-nav__tool-btn app-top-nav__tool-btn--icon-only'"
           icon="bi-bell"
-            :label="navIconOnly ? '' : `Notifications (${logCount})`"
-            :icon-only="navIconOnly"
+          :label="isMobileBottomNav ? '' : (navIconOnly ? '' : `Notifications (${logCount})`)"
+          :icon-only="isMobileBottomNav || navIconOnly"
           aria-label="Open notification log"
           @click="toggleNotifications"
         />
