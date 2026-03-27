@@ -93,7 +93,7 @@ function previewMarkerIcon(imageSrc) {
     className: 'spot-preview-marker',
     html: `<div class="spot-preview-marker__card"><img class="spot-preview-marker__backdrop" src="${safeSrc}" alt="" loading="lazy" /><img class="spot-preview-marker__image" src="${safeSrc}" alt="spot preview" loading="lazy" /></div><div class="spot-preview-marker__tip"></div>`,
     iconSize: [62, 58],
-    iconAnchor: [31, 58],
+    iconAnchor: [31, 44],
   })
 
   previewIconCache.set(key, icon)

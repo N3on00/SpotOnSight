@@ -21,7 +21,6 @@ const props = defineProps({
 
 const emit = defineEmits(['open', 'go-to'])
 const slots = useSlots()
-const hoverPulseActive = ref(false)
 const reportOpen = ref(false)
 const reportBusy = ref(false)
 
@@ -77,22 +76,6 @@ function goToSpot(event) {
   emit('go-to', props.spot)
 }
 
-function triggerHoverPulse() {
-  if (!props.interactive) return
-  hoverPulseActive.value = false
-  if (typeof window === 'undefined') {
-    hoverPulseActive.value = true
-    return
-  }
-  window.requestAnimationFrame(() => {
-    hoverPulseActive.value = true
-  })
-}
-
-function clearHoverPulse() {
-  hoverPulseActive.value = false
-}
-
 function openReportDialog(event) {
   event?.stopPropagation?.()
   if (!props.canReport || typeof props.onReport !== 'function') return
@@ -117,14 +100,11 @@ async function submitReport(payload) {
 <template>
   <article
     class="spot-card-mini"
-    :class="{ 'spot-card-mini--interactive': interactive, 'interactive-hover': interactive, 'spot-card-mini--pulse': hoverPulseActive }"
+    :class="{ 'spot-card-mini--interactive': interactive, 'interactive-hover': interactive }"
     :role="interactive ? 'button' : undefined"
     :tabindex="interactive ? 0 : undefined"
     @click="openCard"
     @keydown="onKeydown"
-    @mouseenter="triggerHoverPulse"
-    @focus="triggerHoverPulse"
-    @animationend="clearHoverPulse"
   >
     <div class="spot-card-mini__media" v-if="preview">
       <img :src="preview" alt="spot image" loading="lazy" />

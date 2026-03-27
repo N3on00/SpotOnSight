@@ -33,12 +33,14 @@ This map turns the actor-runtime target into a concrete migration path for the c
 The first extraction should prove the model on a workflow that has creation, update, deletion, visibility, and projection concerns.
 
 - workflow definitions now live in `backend/core/social/spot_workflows.py`
+- favorite relation workflow definitions now live in `backend/core/social/favorite_workflows.py`
 - generic runtime primitives now live in `backend/core/workflows.py`
 - `SocialActions` delegates spot orchestration through the workflow executor instead of directly embedding the full script
+- `SocialActions` delegates favorite relation orchestration through a workflow executor instead of embedding relation scripts inline
 
 ## What Still Needs To Move
 
-- follow, block, favorite, support, moderation, comment, and meetup flows
+- follow, block, support, moderation, comment, and meetup flows
 - route registration out of `backend/models/schemas.py`
 - explicit policy modules per bounded concern
 - workflow versioning and audit metadata

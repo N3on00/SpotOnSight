@@ -7,6 +7,7 @@ import SpotMiniCard from '../common/SpotMiniCard.vue'
 import AppTextField from '../common/AppTextField.vue'
 import AppCheckbox from '../common/AppCheckbox.vue'
 import ActionButton from '../common/ActionButton.vue'
+import SearchSuggestions from './SearchSuggestions.vue'
 
 const props = defineProps({
   spots: { type: Array, default: () => [] },
@@ -55,9 +56,21 @@ const props = defineProps({
 
 const searchQuery = ref('')
 const searchFocus = ref(false)
+const dropdownHover = ref(false)
 const filterPanelOpen = ref(false)
 const resultsPanelOpen = ref(false)
 const hasSearched = ref(false)
+const searchBarRef = ref(null)
+
+const searchBarPosition = computed(() => {
+  if (!searchBarRef.value) return null
+  const rect = searchBarRef.value.getBoundingClientRect()
+  return {
+    top: rect.bottom,
+    left: rect.left,
+    width: rect.width
+  }
+})
 
 const hasActiveFilters = computed(() => {
   return Boolean(
@@ -72,7 +85,7 @@ const hasActiveFilters = computed(() => {
 })
 
 const showSearchDropdown = computed(() => {
-  return searchFocus.value && (
+  return (searchFocus.value || dropdownHover.value) && (
     (props.locationResults.length > 0) ||
     props.activeLocation ||
     spotSuggestions.value.length > 0
@@ -231,7 +244,7 @@ function clearSearch() {
           <i class="bi bi-compass-fill"></i>
         </div>
         
-        <div class="fullscreen-map__search-container" @click.stop>
+        <div class="fullscreen-map__search-container" @click.stop ref="searchBarRef">
           <div class="fullscreen-map__search-bar">
             <AppTextField
               bare
@@ -265,68 +278,16 @@ function clearSearch() {
             </div>
           </div>
           
-          <Transition name="dropdown-fade">
-            <div class="fullscreen-map__search-dropdown" v-if="showSearchDropdown">
-              <div v-if="spotSuggestions.length > 0" class="fullscreen-map__search-section">
-                <div class="fullscreen-map__search-section-title">
-                  <i class="bi bi-pin"></i>
-                  Spots
-                </div>
-                <button
-                  class="fullscreen-map__search-result"
-                  v-for="spot in spotSuggestions"
-                  :key="`search-spot-${spot.id}`"
-                  @click="selectSpotResult(spot)"
-                  type="button"
-                >
-                  <i class="bi bi-geo-alt"></i>
-                  <div class="fullscreen-map__search-result-content">
-                    <span class="fullscreen-map__search-result-title">{{ spot.title }}</span>
-                    <span class="fullscreen-map__search-result-meta">{{ spot.tags?.slice(0, 3).join(', ') || 'spot' }}</span>
-                  </div>
-                </button>
-              </div>
-              
-              <div v-if="props.locationResults.length > 0" class="fullscreen-map__search-section">
-                <div class="fullscreen-map__search-section-title">
-                  <i class="bi bi-building"></i>
-                  Places
-                </div>
-                <button
-                  class="fullscreen-map__search-result"
-                  v-for="result in props.locationResults.slice(0, 5)"
-                  :key="`search-loc-${result.id}-${result.lat}`"
-                  @click="selectLocation(result)"
-                  type="button"
-                >
-                  <i class="bi bi-geo-alt"></i>
-                  <div class="fullscreen-map__search-result-content">
-                    <span class="fullscreen-map__search-result-title">{{ result.label }}</span>
-                    <span class="fullscreen-map__search-result-meta">{{ result.type || 'place' }}</span>
-                  </div>
-                </button>
-              </div>
-              
-              <div v-if="props.activeLocation" class="fullscreen-map__search-section">
-                <div class="fullscreen-map__search-section-title">
-                  <i class="bi bi-pin-map-fill"></i>
-                  Active Location
-                </div>
-                <button
-                  class="fullscreen-map__search-result fullscreen-map__search-result--active"
-                  @click="clearLocation"
-                  type="button"
-                >
-                  <i class="bi bi-geo-alt-fill"></i>
-                  <div class="fullscreen-map__search-result-content">
-                    <span class="fullscreen-map__search-result-title">{{ props.activeLocation.label }}</span>
-                    <span class="fullscreen-map__search-result-meta">Click to clear</span>
-                  </div>
-                  <i class="bi bi-x-circle-fill fullscreen-map__search-result-clear"></i>
-                </button>
-              </div>
-            </div>
-          </Transition>
+          <SearchSuggestions
+            :spots="listedSpots"
+            :location-results="locationResults"
+            :active-location="activeLocation"
+            :query="searchQuery"
+            :is-open="searchFocus || dropdownHover"
+            @select-spot="selectSpotResult"
+            @select-location="selectLocation"
+            @clear-location="clearLocation"
+          />
         </div>
         
         <div class="fullscreen-map__toolbar-actions">
@@ -387,53 +348,6 @@ function clearSearch() {
       <Transition name="filter-slide">
         <div class="fullscreen-map__filter-panel" v-if="filterPanelOpen">
           <div class="fullscreen-map__filter-inner">
-            <div class="fullscreen-map__filter-section">
-              <label class="fullscreen-map__filter-label">Quick Location</label>
-              <div class="fullscreen-map__location-row">
-                <AppTextField
-                  bare
-                  class-name="form-control"
-                  placeholder="Find place or address..."
-                  v-model="locationQueryLocal"
-                  @enter="runLocationSearch"
-                />
-                <ActionButton
-                  class-name="btn btn-outline-primary"
-                  icon="bi-search"
-                  icon-only
-                  :label="locationSearchBusy ? 'Searching...' : 'Search'"
-                  :disabled="locationSearchBusy || !locationQueryLocal"
-                  @click="runLocationSearch"
-                />
-                <ActionButton
-                  class-name="btn btn-outline-secondary"
-                  icon="bi-x-circle"
-                  icon-only
-                  label="Clear"
-                  :disabled="!activeLocation"
-                  @click="clearLocation"
-                />
-              </div>
-              
-              <div class="fullscreen-map__location-results" v-if="locationResults.length">
-                <button
-                  class="fullscreen-map__location-result"
-                  v-for="result in locationResults.slice(0, 3)"
-                  :key="`filter-loc-${result.id}-${result.lat}`"
-                  @click="selectLocation(result)"
-                >
-                  <i class="bi bi-geo-alt"></i>
-                  <span>{{ result.label }}</span>
-                  <small class="text-muted">{{ result.type || 'place' }}</small>
-                </button>
-              </div>
-              
-              <div class="fullscreen-map__active-location" v-if="activeLocation">
-                <i class="bi bi-pin-map"></i>
-                {{ activeLocation.label }}
-              </div>
-            </div>
-            
             <div class="fullscreen-map__filter-row">
               <div class="fullscreen-map__filter-group">
                 <label class="fullscreen-map__filter-label">Tags</label>
@@ -633,7 +547,7 @@ function clearSearch() {
   top: 0.75rem;
   left: 0.75rem;
   right: 0.75rem;
-  z-index: 100;
+  z-index: 200;
   background: var(--app-surface);
   backdrop-filter: blur(12px);
   padding: 0.6rem 0.75rem;
@@ -760,7 +674,6 @@ function clearSearch() {
   box-shadow: var(--surface-shadow);
   max-height: 60vh;
   overflow-y: auto;
-  z-index: 10;
 }
 
 .fullscreen-map__search-section {
@@ -1066,10 +979,10 @@ function clearSearch() {
 
 .fullscreen-map__results {
   position: absolute;
-  bottom: 0.75rem;
+  bottom: calc(0.75rem + var(--app-mobile-nav-overlay-height, 0px));
   left: 0.75rem;
   right: 0.75rem;
-  z-index: 100;
+  z-index: 1150;
   max-height: 45vh;
   background: var(--app-surface);
   border-radius: var(--bs-border-radius-lg);
@@ -1215,7 +1128,7 @@ function clearSearch() {
   top: 0.75rem;
   left: 0.75rem;
   right: 0.75rem;
-  z-index: 100;
+  z-index: 200;
   background: var(--app-surface);
   backdrop-filter: blur(12px);
   padding: 0.6rem 0.75rem;
@@ -1231,9 +1144,10 @@ function clearSearch() {
 
 .fullscreen-map__results {
   position: absolute;
-  bottom: 0.75rem;
+  bottom: calc(0.75rem + var(--app-mobile-nav-overlay-height, 0px));
   left: 0.75rem;
   right: 0.75rem;
+  z-index: 1200;
   max-height: 45vh;
   border-radius: var(--bs-border-radius-lg);
   border: 1px solid var(--soft-line);

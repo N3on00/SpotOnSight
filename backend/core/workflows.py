@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping, Protocol
 
+from pymongo.errors import DuplicateKeyError
+
 
 Resolver = Callable[["ExecutionContext", dict[str, Any]], Any]
 Policy = Callable[["ExecutionContext", dict[str, Any]], None]
@@ -148,6 +150,12 @@ class PersistActor:
         if operation == "insert_one":
             document = context.get(step.config.get("document_key"))
             value = repository.insert_one(document)
+        elif operation == "insert_one_ignore_duplicate":
+            document = context.get(step.config.get("document_key"))
+            try:
+                value = repository.insert_one(document)
+            except DuplicateKeyError:
+                value = None
         elif operation == "find_one":
             query = context.get(step.config.get("query_key"), {})
             projection = step.config.get("projection")

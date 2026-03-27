@@ -86,6 +86,44 @@ function createWrapper(props = {}) {
       stubs: {
         LeafletSpotMap: { template: '<div class="leaflet-map-mock" />' },
         SpotMiniCard: { template: '<div class="spot-mini-card-mock" />' },
+        SearchSuggestions: {
+          template: `
+            <div class="search-suggestions" v-if="isOpen">
+              <div class="search-suggestions__section" v-if="spotSuggestions.length">
+                <button
+                  v-for="spot in spotSuggestions"
+                  :key="spot.id"
+                  class="search-suggestions__item search-suggestions__item--spot"
+                  @click="$emit('select-spot', spot)"
+                >{{ spot.title }}</button>
+              </div>
+              <div class="search-suggestions__section" v-if="locationResults.length">
+                <button 
+                  v-for="result in locationResults" 
+                  :key="result.id" 
+                  class="search-suggestions__item"
+                  @click="$emit('select-location', result)"
+                >{{ result.label }}</button>
+              </div>
+              <div class="search-suggestions__section" v-if="activeLocation">
+                <button 
+                  class="search-suggestions__item search-suggestions__item--active"
+                  @click="$emit('clear-location')"
+                >{{ activeLocation.label }}</button>
+              </div>
+            </div>
+          `,
+          props: ['spots', 'locationResults', 'activeLocation', 'query', 'isOpen'],
+          emits: ['select-spot', 'select-location', 'clear-location'],
+          computed: {
+            spotSuggestions() {
+              const q = String(this.query || '').trim().toLowerCase()
+              if (q.length < 2) return []
+              const spots = Array.isArray(this.spots) ? this.spots : []
+              return spots.filter((spot) => String(spot?.title || '').toLowerCase().includes(q)).slice(0, 5)
+            }
+          }
+        },
         AppTextField: {
           template: '<input :class="className" :placeholder="placeholder" v-model="model" @focus="$emit(\'focus\')" @blur="$emit(\'blur\')" @keydown.enter="$emit(\'enter\')" />',
           props: ['modelValue', 'className', 'placeholder', 'bare'],
@@ -161,10 +199,10 @@ describe('MobileMapOverlay Search', () => {
       wrapper.vm.searchFocus = true
       await nextTick()
 
-      const dropdown = wrapper.find('.fullscreen-map__search-dropdown')
+      const dropdown = wrapper.find('.search-suggestions')
       expect(dropdown.exists()).toBe(true)
 
-      const results = wrapper.findAll('.fullscreen-map__search-result')
+      const results = wrapper.findAll('.search-suggestions__item')
       expect(results.length).toBe(2)
     })
 
@@ -176,7 +214,7 @@ describe('MobileMapOverlay Search', () => {
       wrapper.vm.searchFocus = true
       await nextTick()
 
-      const firstResult = wrapper.find('.fullscreen-map__search-result')
+      const firstResult = wrapper.find('.search-suggestions__item')
       await firstResult.trigger('click')
       await nextTick()
 
@@ -184,17 +222,49 @@ describe('MobileMapOverlay Search', () => {
     })
   })
 
-  describe('Active Location', () => {
-    it('shows active location when set', async () => {
-      const mockLocation = { id: 'loc-1', label: 'Zurich HB', lat: 47.3782, lon: 8.5403 }
-      const wrapper = createWrapper({ activeLocation: mockLocation })
-
-      wrapper.vm.filterPanelOpen = true
+  describe('Spot Suggestions', () => {
+    it('displays matching spot suggestions when query matches spot titles', async () => {
+      const wrapper = createWrapper()
+      const searchInput = wrapper.find('.fullscreen-map__search-input')
+      await searchInput.setValue('Alpine')
+      wrapper.vm.searchFocus = true
       await nextTick()
 
-      const activeLocation = wrapper.find('.fullscreen-map__active-location')
-      expect(activeLocation.exists()).toBe(true)
-      expect(activeLocation.text()).toContain('Zurich HB')
+      const spotSuggestions = wrapper.findAll('.search-suggestions__item--spot')
+      expect(spotSuggestions.length).toBe(1)
+      expect(spotSuggestions[0].text()).toContain('Alpine Viewpoint')
+    })
+
+    it('opens spot details when selecting a suggested spot', async () => {
+      const onOpenSpot = vi.fn()
+      const wrapper = createWrapper({ onOpenSpot })
+      const searchInput = wrapper.find('.fullscreen-map__search-input')
+      await searchInput.setValue('City')
+      wrapper.vm.searchFocus = true
+      await nextTick()
+
+      const spotSuggestion = wrapper.find('.search-suggestions__item--spot')
+      await spotSuggestion.trigger('click')
+      await nextTick()
+
+      expect(onOpenSpot).toHaveBeenCalledWith(expect.objectContaining({ id: 'spot-2' }))
+    })
+  })
+
+  describe('Active Location', () => {
+    it('shows active location badge when activeLocation is set', async () => {
+      const mockLocation = { id: 'loc-1', label: 'Zurich HB', lat: 47.3782, lon: 8.5403 }
+      const wrapper = createWrapper({ 
+        activeLocation: mockLocation,
+        locationResults: []
+      })
+
+      wrapper.vm.searchFocus = true
+      await nextTick()
+
+      const searchDropdown = wrapper.find('.search-suggestions')
+      expect(searchDropdown.exists()).toBe(true)
+      expect(searchDropdown.text()).toContain('Zurich HB')
     })
 
     it('calls onClearLocation when clearing active location', async () => {
@@ -205,7 +275,7 @@ describe('MobileMapOverlay Search', () => {
       wrapper.vm.searchFocus = true
       await nextTick()
 
-      const clearButton = wrapper.find('.fullscreen-map__search-result--active')
+      const clearButton = wrapper.find('.search-suggestions__item--active')
       await clearButton.trigger('click')
       await nextTick()
 
@@ -239,7 +309,7 @@ describe('MobileMapOverlay Search', () => {
       wrapper.vm.searchFocus = true
       await nextTick()
 
-      const firstResult = wrapper.find('.fullscreen-map__search-result')
+      const firstResult = wrapper.find('.search-suggestions__item')
       await firstResult.trigger('click')
       await nextTick()
 

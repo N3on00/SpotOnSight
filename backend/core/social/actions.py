@@ -44,7 +44,6 @@ from models.schemas import (
 from repositories.auth_repository import get_auth_user_repository
 from services.auth.password_service import password_service
 
-from .builders import build_spot_doc, visible_favorite_refs
 from .ids import (
     as_text,
     normalize_login,
@@ -61,6 +60,7 @@ from .mappers import to_meetup_notification_public, to_meetup_public, to_moderat
 from .mappers import to_moderation_user_public, to_moderation_user_summary, to_spot_public
 from .mappers import to_support_ticket_public, to_user_public
 from .policies import can_view_private_user, can_view_spot, is_blocked_pair, is_following
+from .favorite_workflows import FavoriteWorkflowExecutor
 from .spot_workflows import SpotWorkflowExecutor
 
 
@@ -75,6 +75,7 @@ class SocialActions:
     def __init__(self, repos) -> None:
         self.repos = repos
         self.spot_workflows = SpotWorkflowExecutor(self)
+        self.favorite_workflows = FavoriteWorkflowExecutor(self)
 
     @staticmethod
     def _now() -> datetime:
@@ -550,31 +551,16 @@ class SocialActions:
         return self.spot_workflows.user_spots(user_id, current_user)
 
     def add_favorite(self, spot_id: str, current_user: dict[str, Any]) -> dict[str, bool]:
-        spot = self.spot_or_404(spot_id)
-        me_id = self.require_spot_visible(spot, current_user, "Spot is not visible to you")
-        doc = {"user_id": me_id, "spot_id": serialize_id(spot.get("_id")), "created_at": datetime.now(UTC)}
-        self.insert_relation_ignore_duplicate(self.repos.favorites.collection, doc)
-        return {"ok": True}
+        return self.favorite_workflows.add_favorite(spot_id, current_user)
 
     def remove_favorite(self, spot_id: str, current_user: dict[str, Any]) -> dict[str, bool]:
-        me_id = self.me_id(current_user)
-        canonical_values = [as_text(spot_id)]
-        if ObjectId.is_valid(spot_id):
-            canonical_values.append(serialize_id(ObjectId(spot_id)))
-        canonical_values = [value for value in dict.fromkeys([v for v in canonical_values if v])]
-        self.repos.favorites.collection.delete_many({"user_id": me_id, "spot_id": {"$in": canonical_values}})
-        return {"ok": True}
+        return self.favorite_workflows.remove_favorite(spot_id, current_user)
 
     def list_favorites(self, current_user: dict[str, Any]) -> list[FavoriteRef]:
-        me_id = self.me_id(current_user)
-        rows = list(self.repos.favorites.collection.find({"user_id": me_id}).sort("created_at", -1).limit(2000))
-        return visible_favorite_refs(self.repos, rows, me_id)
+        return self.favorite_workflows.list_favorites(current_user)
 
     def user_favorites(self, user_id: str, current_user: dict[str, Any]) -> list[FavoriteRef]:
-        _target_id, target = self.user_or_404(user_id)
-        me_id = self.require_private_profile_access(target, current_user)
-        rows = list(self.repos.favorites.collection.find({"user_id": user_id}).sort("created_at", -1).limit(2000))
-        return visible_favorite_refs(self.repos, rows, me_id)
+        return self.favorite_workflows.user_favorites(user_id, current_user)
 
     def follow_requests(self, current_user: dict[str, Any]) -> list[FollowRequestRef]:
         me_id = self.me_id(current_user)
