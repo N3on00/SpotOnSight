@@ -1165,27 +1165,18 @@ function clearSearch() {
     max-height: 60vh;
   }
 
-  .fullscreen-map__map :deep(.leaflet-control-zoom) {
+  .fullscreen-map__map :deep(.cesium-map__controls) {
     top: 0.75rem;
     right: 0.75rem;
-    left: auto;
-    border: none;
-    border-radius: var(--bs-border-radius);
-    box-shadow: var(--surface-shadow);
-    overflow: hidden;
   }
 
-  .fullscreen-map__map :deep(.leaflet-control-zoom a) {
-    background: var(--app-surface);
-    color: var(--app-text);
-    border-color: var(--soft-line);
+  .fullscreen-map__map :deep(.cesium-map__control) {
     width: 36px;
     height: 36px;
-    line-height: 36px;
   }
 
-  .fullscreen-map__map :deep(.leaflet-control-zoom a:hover) {
-    background: var(--app-surface-soft);
+  .fullscreen-map__map :deep(.cesium-map__control i) {
+    font-size: 0.95rem;
   }
 }
 

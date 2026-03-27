@@ -16,7 +16,7 @@ import 'bootswatch/dist/flatly/bootstrap.min.css'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 import 'aos/dist/aos.css'
 import './style.css'
-import 'leaflet/dist/leaflet.css'
+import 'cesium/Build/Cesium/Widgets/widgets.css'
 import App from './App.vue'
 
 const appCtx = buildAppContext()

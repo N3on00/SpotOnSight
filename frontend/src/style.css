@@ -1868,11 +1868,57 @@ select:-webkit-autofill:focus {
   box-shadow: 0 14px 34px rgba(15, 40, 48, 0.18);
 }
 
+.cesium-map :is(.cesium-viewer, .cesium-viewer-cesiumWidgetContainer, .cesium-widget) {
+  width: 100%;
+  height: 100%;
+}
+
+.cesium-map canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .leaflet-map-shell {
   position: relative;
   border-radius: 1.05rem;
   overflow: hidden;
   isolation: isolate;
+}
+
+.cesium-map__controls {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 0.38rem;
+}
+
+.cesium-map__control {
+  width: 2.3rem;
+  height: 2.3rem;
+  border: 1px solid var(--soft-line);
+  border-radius: 0.85rem;
+  background: color-mix(in oklab, var(--app-surface) 92%, rgba(var(--bs-primary-rgb), 0.08) 8%);
+  color: var(--app-text);
+  display: inline-grid;
+  place-items: center;
+  box-shadow: var(--surface-shadow);
+  transition: transform 150ms ease, background-color 150ms ease, border-color 150ms ease;
+}
+
+.cesium-map__control:hover,
+.cesium-map__control:focus-visible {
+  background: var(--app-surface-soft);
+  border-color: rgba(var(--bs-primary-rgb), 0.42);
+  transform: translateY(-1px);
+}
+
+.cesium-map__control:focus-visible {
+  outline: 2px solid var(--interactive-ring);
+  outline-offset: 2px;
 }
 
 .map-edge-hints {

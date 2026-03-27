@@ -32,7 +32,9 @@
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
     "bootswatch": "^5.3.8",
+    "cesium": "^1.139.1",
     "leaflet": "^1.9.4",
+    "vite-plugin-cesium": "^1.2.23",
     "vue": "^3.5.25",
     "vue-router": "^5.0.2"
   },
