@@ -11,6 +11,7 @@ import {
   HeightReference,
   ImageryLayer,
   Math as CesiumMath,
+  NearFarScalar,
   OpenStreetMapImageryProvider,
   Rectangle,
   SceneTransforms,
@@ -86,6 +87,15 @@ function cameraHeightToZoom(height) {
 function spotTitle(spot) {
   const title = String(spot?.title || '').trim()
   return title || 'Spot'
+}
+
+function fallbackCenterCartographic() {
+  const lat = Number(props.center?.[0])
+  const lon = Number(props.center?.[1])
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    return Cartographic.fromDegrees(47.3769, 8.5417, 0)
+  }
+  return Cartographic.fromDegrees(lon, lat, 0)
 }
 
 function escapeSvgText(value) {
@@ -214,7 +224,13 @@ function cameraCenterCartographic() {
   }
 
   const rectangle = viewer.camera.computeViewRectangle(scene.globe.ellipsoid)
-  if (!rectangle) return null
+  if (!rectangle) return fallbackCenterCartographic()
+
+  const width = Math.abs(rectangle.east - rectangle.west)
+  const height = Math.abs(rectangle.north - rectangle.south)
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width > (Math.PI * 1.8) || height > (Math.PI * 0.95)) {
+    return fallbackCenterCartographic()
+  }
 
   return Cartographic.fromRadians(
     (rectangle.west + rectangle.east) / 2,
@@ -259,7 +275,11 @@ function updateInteractionMode() {
 function flyToPoint(lat, lon, zoom = props.zoom, immediate = false) {
   if (!viewer || isDisposed) return
 
-  const destination = Cartesian3.fromDegrees(Number(lon), Number(lat), zoomToCameraHeight(zoom))
+  const nextLat = Number(lat)
+  const nextLon = Number(lon)
+  if (!Number.isFinite(nextLat) || !Number.isFinite(nextLon)) return
+
+  const destination = Cartesian3.fromDegrees(nextLon, nextLat, zoomToCameraHeight(zoom))
   const options = {
     destination,
     orientation: {
@@ -322,14 +342,16 @@ function syncMarkers() {
       height: String(firstImageSource(spot?.images) || '').trim() ? 68 : 50,
       verticalOrigin: VerticalOrigin.BOTTOM,
       heightReference: HeightReference.CLAMP_TO_GROUND,
-      scaleByDistance: undefined,
+      scaleByDistance: String(firstImageSource(spot?.images) || '').trim()
+        ? new NearFarScalar(120000, 1, 3500000, 0.22)
+        : new NearFarScalar(120000, 1, 3500000, 0.45),
       pixelOffset: new Cartesian2(0, -8),
-      eyeOffset: new Cartesian3(0, 0, -16),
+      eyeOffset: new Cartesian3(0, 0, -12),
     })
 
     const entity = viewer.entities.add({
       id: `spot-${String(spot.id || `${lat},${lon}`)}`,
-      position: Cartesian3.fromDegrees(lon, lat),
+      position: Cartesian3.fromDegrees(lon, lat, 1),
       billboard,
       properties: { spot },
     })

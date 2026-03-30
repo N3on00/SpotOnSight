@@ -38,9 +38,19 @@ export function buildAppContext() {
   registerErrorHandlers()
   registerRuntime()
 
+  function beginBackendRequest() {
+    state.ui.backendRequestCount = Math.max(0, Number(state.ui.backendRequestCount) || 0) + 1
+  }
+
+  function endBackendRequest() {
+    state.ui.backendRequestCount = Math.max(0, (Number(state.ui.backendRequestCount) || 0) - 1)
+  }
+
   const serviceFactories = {
     apiClient: (ctx) => new ApiClient(ctx.state.config.apiBaseUrl, {
       onUnauthorized: () => handleUnauthorizedSession(ctx),
+      onRequestStart: beginBackendRequest,
+      onRequestEnd: endBackendRequest,
     }),
     apiGateway: (ctx) => new ApiGatewayService(ctx.service('apiClient'), ctx.state),
     authService: (ctx) => new AuthService(ctx.service('apiGateway'), ctx.state),

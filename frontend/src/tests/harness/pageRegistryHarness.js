@@ -163,6 +163,7 @@ function createDefaultState() {
     ui: {
       theme: 'light',
       activeScreen: '',
+      backendRequestCount: 0,
     },
   }
 }

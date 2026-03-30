@@ -25,4 +25,8 @@ export function resetAuthenticatedState(state) {
   state.profile.createdSpots = []
   state.profile.favoriteSpots = []
   state.profile.viewedUserId = ''
+
+  if (state.ui && typeof state.ui === 'object') {
+    state.ui.backendRequestCount = 0
+  }
 }

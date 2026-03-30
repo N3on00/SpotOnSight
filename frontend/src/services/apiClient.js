@@ -48,9 +48,11 @@ function buildRequestUrl(baseUrl, path) {
 }
 
 export class ApiClient {
-  constructor(baseUrl, { onUnauthorized } = {}) {
+  constructor(baseUrl, { onUnauthorized, onRequestStart, onRequestEnd } = {}) {
     this.baseUrl = baseUrl
     this.onUnauthorized = typeof onUnauthorized === 'function' ? onUnauthorized : null
+    this.onRequestStart = typeof onRequestStart === 'function' ? onRequestStart : null
+    this.onRequestEnd = typeof onRequestEnd === 'function' ? onRequestEnd : null
   }
 
   async request(method, path, { body, token, form = false } = {}) {
@@ -80,49 +82,54 @@ export class ApiClient {
     }
 
     let lastError = null
-    for (const p of tryPaths) {
-      const url = buildRequestUrl(this.baseUrl, p)
-      try {
-        const res = await fetch(url, { method, headers, body: payload })
-        const text = await res.text()
-        let data = {}
-        if (text) {
-          try {
-            data = JSON.parse(text)
-          } catch {
-            data = { raw: text }
-          }
-        }
-
-        if (!res.ok) {
-          if (res.status === 401 && hasAuthToken && this.onUnauthorized) {
+    this.onRequestStart?.({ method, path })
+    try {
+      for (const p of tryPaths) {
+        const url = buildRequestUrl(this.baseUrl, p)
+        try {
+          const res = await fetch(url, { method, headers, body: payload })
+          const text = await res.text()
+          let data = {}
+          if (text) {
             try {
-              this.onUnauthorized({ status: res.status, method, path: p, data })
+              data = JSON.parse(text)
             } catch {
-              // Ignore unauthorized callback failures.
+              data = { raw: text }
             }
           }
 
-          throw createApiError({
-            status: res.status,
-            method,
-            path: p,
-            data,
-            url,
-            requestBody: body,
-          })
-        }
+          if (!res.ok) {
+            if (res.status === 401 && hasAuthToken && this.onUnauthorized) {
+              try {
+                this.onUnauthorized({ status: res.status, method, path: p, data })
+              } catch {
+                // Ignore unauthorized callback failures.
+              }
+            }
 
-        return data
-      } catch (e) {
-        lastError = e
-        if (e?.status !== 404) {
-          break
+            throw createApiError({
+              status: res.status,
+              method,
+              path: p,
+              data,
+              url,
+              requestBody: body,
+            })
+          }
+
+          return data
+        } catch (e) {
+          lastError = e
+          if (e?.status !== 404) {
+            break
+          }
         }
       }
-    }
 
-    throw lastError || new Error('Unknown API error')
+      throw lastError || new Error('Unknown API error')
+    } finally {
+      this.onRequestEnd?.({ method, path })
+    }
   }
 
   get(path, opts = {}) {

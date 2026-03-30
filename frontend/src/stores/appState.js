@@ -155,6 +155,7 @@ export function createAppState() {
     ui: {
       theme,
       activeScreen: '',
+      backendRequestCount: 0,
     },
   })
 }

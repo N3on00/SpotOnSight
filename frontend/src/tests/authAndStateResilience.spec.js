@@ -109,6 +109,30 @@ describe('Auth failure and unauthorized handling', () => {
       expect.objectContaining({ method: 'GET' }),
     )
   })
+
+  it('tracks backend request lifecycle callbacks around API calls', async () => {
+    const onRequestStart = vi.fn()
+    const onRequestEnd = vi.fn()
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ status: 'ok' }),
+    }))
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    const apiClient = new TestApiClient('http://127.0.0.1:8000', {
+      onRequestStart,
+      onRequestEnd,
+    })
+
+    await apiClient.post('/spots', { title: 'Test spot' })
+
+    expect(onRequestStart).toHaveBeenCalledOnce()
+    expect(onRequestStart).toHaveBeenCalledWith({ method: 'POST', path: '/spots' })
+    expect(onRequestEnd).toHaveBeenCalledOnce()
+    expect(onRequestEnd).toHaveBeenCalledWith({ method: 'POST', path: '/spots' })
+  })
 })
 
 describe('Session persistence and offline resilience', () => {
