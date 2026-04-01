@@ -1,9 +1,11 @@
 name: deploy-development
 
 on:
-  push:
-    branches:
-      - dev
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
 
 concurrency:
   group: development-deploy
@@ -11,7 +13,10 @@ concurrency:
 
 jobs:
   deploy-development:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'dev' }}
     runs-on: ubuntu-latest
+    environment:
+      name: dev
     env:
       VPS_USER: deploy
       SSHPASS: ${{ secrets.VPS_PASSWORD }}
@@ -19,6 +24,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Add VPS to known_hosts
         run: |

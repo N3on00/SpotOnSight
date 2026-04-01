@@ -57,16 +57,17 @@ describe('Component behavior decorator', () => {
     const screen = `spec.behavior.${Date.now()}`
     const widgetId = `${screen}.widget`
     const uiRegistry = createUiRegistryBuilder()
-    const module = uiRegistry.createScreenModule(screen)
-
-    module.main({
-      id: widgetId,
-      order: 10,
-      component: DummyWidget,
-      behaviorClass: TestWidgetBehavior,
-      buildProps: ({ screen: currentScreen }) => ({
-        title: currentScreen,
-      }),
+    uiRegistry.registerScreenDefinition({
+      screen,
+      main: [{
+        id: widgetId,
+        order: 10,
+        component: DummyWidget,
+        behaviorClass: TestWidgetBehavior,
+        buildProps: ({ screen: currentScreen }) => ({
+          title: currentScreen,
+        }),
+      }],
     })
 
     const specs = uiRegistry.getComponents(screen, UI_SLOTS.MAIN)

@@ -181,3 +181,7 @@ export function endLoadingState(state, key) {
   state.loadingCounts[key] = Math.max(0, (state.loadingCounts[key] || 0) - 1)
   state.loading[key] = state.loadingCounts[key] > 0
 }
+
+export function setActiveScreen(state, screen) {
+  state.ui.activeScreen = String(screen || '')
+}

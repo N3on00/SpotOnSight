@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import SlotScreenLayout from '../components/layouts/SlotScreenLayout.vue'
 import { resolveScreenErrorHandler } from '../core/errorHandlerRegistry'
 import { useApp } from '../core/injection'
-import { getScreenLifecycle } from '../core/screenRegistry'
+import { setActiveScreen } from '../state/appMutations'
 import { UI_LAYOUTS, UI_SLOTS } from '../core/uiElements'
 
 const props = defineProps({
@@ -36,7 +36,7 @@ function snapshotRoute(src) {
   }
 }
 
-const lifecycle = computed(() => getScreenLifecycle(props.screen) || null)
+const lifecycle = computed(() => app.ui?.getScreenLifecycle(props.screen) || null)
 const layout = computed(() => layoutForScreen(props.screen))
 
 const screenCtx = computed(() => {
@@ -97,7 +97,7 @@ async function runLifecycleHook(hookName, errorTitle, errorMessage) {
 }
 
 onMounted(async () => {
-  app.state.ui.activeScreen = props.screen
+  setActiveScreen(app.state, props.screen)
   previousRoute.value = snapshotRoute(route)
 
   await runLifecycleHook(
@@ -112,7 +112,7 @@ watch(
   async () => {
     const prev = previousRoute.value
     previousRoute.value = snapshotRoute(route)
-    app.state.ui.activeScreen = props.screen
+    setActiveScreen(app.state, props.screen)
 
     const hook = lifecycle.value?.onRouteChange
     if (typeof hook !== 'function') return

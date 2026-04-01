@@ -26,31 +26,31 @@ describe('Screen registry generic module API', () => {
       handlerClass: TestScreenRegistryHandler,
     })
 
-    const uiRegistry = createUiRegistryBuilder()
-    const module = uiRegistry.createScreenModule(screen)
     const actionHandler = () => true
-
-    module
-      .action(actionId, actionHandler)
-      .header({
+    const uiRegistry = createUiRegistryBuilder()
+    uiRegistry.registerScreenDefinition({
+      screen,
+      actions: [{ id: actionId, handler: actionHandler }],
+      headers: [{
         id: headerId,
         order: 10,
         component: DummyWidget,
         buildProps: () => ({ title: 'Header' }),
-      })
-      .main({
+      }],
+      main: [{
         id: mainId,
         order: 20,
         component: DummyWidget,
         buildProps: () => ({ title: 'Main' }),
-      })
-      .lifecycle({
+      }],
+      lifecycle: {
         onEnter: async () => true,
         onRouteChange: async () => true,
         errorHandlerId: handlerId,
         errorTitle: 'Load failed',
         errorMessage: 'Could not initialize screen.',
-      })
+      },
+    })
 
     const action = uiRegistry.getAction(actionId)
     const headerWidgets = uiRegistry.getComponents(screen, UI_SLOTS.HEADER)

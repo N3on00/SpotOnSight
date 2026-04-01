@@ -126,25 +126,22 @@ export function createUiRegistryBuilder() {
     return { ...value }
   }
 
-  function createScreenModule(screen) {
-    const screenId = asText(screen)
+  function registerScreenDefinition(definition) {
+    const screenId = asText(definition?.screen)
+    if (!screenId) {
+      throw new Error('Screen definition requires screen id')
+    }
     const screenConfig = ensureScreen(screenId)
 
-    function registerErrorHandler({
-      id,
-      handlerClass,
-      routeId,
-      routeHandlerClass,
-      useForRoute = false,
-    } = {}) {
-      const handlerId = asText(id)
+    for (const entry of Array.isArray(definition?.errorHandlers) ? definition.errorHandlers : []) {
+      const handlerId = asText(entry?.id)
       if (!handlerId) {
         throw new Error(`Screen '${screenId}' errorHandler() requires id`)
       }
 
       registerScreenErrorHandler({
         id: handlerId,
-        handlerClass,
+        handlerClass: entry.handlerClass,
       })
 
       const lifecyclePatch = {
@@ -152,27 +149,37 @@ export function createUiRegistryBuilder() {
         errorHandlerId: handlerId,
       }
 
-      if (routeHandlerClass) {
-        const nextRouteId = asText(routeId) || `${handlerId}.route`
+      if (entry.routeHandlerClass) {
+        const nextRouteId = asText(entry.routeId) || `${handlerId}.route`
         registerScreenErrorHandler({
           id: nextRouteId,
-          handlerClass: routeHandlerClass,
+          handlerClass: entry.routeHandlerClass,
         })
         lifecyclePatch.routeErrorHandlerId = nextRouteId
       } else {
-        const explicitRouteId = asText(routeId)
+        const explicitRouteId = asText(entry.routeId)
         if (explicitRouteId) {
           lifecyclePatch.routeErrorHandlerId = explicitRouteId
-        } else if (useForRoute) {
+        } else if (entry.useForRoute) {
           lifecyclePatch.routeErrorHandlerId = handlerId
         }
       }
 
       registerScreenLifecycle(lifecyclePatch)
-      return api
     }
 
-    function registerAt(slot, spec) {
+    for (const entry of Array.isArray(definition?.actions) ? definition.actions : []) {
+      registerAction(entry.id, entry.handler)
+    }
+
+    const registrations = [
+      ...(Array.isArray(definition?.widgets) ? definition.widgets.map((entry) => ({ slot: asText(entry?.slot) || UI_SLOTS.MAIN, spec: entry })) : []),
+      ...(Array.isArray(definition?.headers) ? definition.headers.map((entry) => ({ slot: UI_SLOTS.HEADER, spec: entry })) : []),
+      ...(Array.isArray(definition?.main) ? definition.main.map((entry) => ({ slot: UI_SLOTS.MAIN, spec: entry })) : []),
+      ...(Array.isArray(definition?.footers) ? definition.footers.map((entry) => ({ slot: UI_SLOTS.FOOTER, spec: entry })) : []),
+    ]
+
+    for (const { slot, spec } of registrations) {
       const decoratedSpec = wrapComponentSpecWithDecorators({
         screen: screenId,
         slot,
@@ -186,81 +193,17 @@ export function createUiRegistryBuilder() {
         slot,
         ...decoratedSpec,
       })
-      return api
-    }
-
-    const api = {
-      action(actionId, handler) {
-        registerAction(actionId, handler)
-        return api
-      },
-      widget(spec) {
-        const slot = asText(spec?.slot) || UI_SLOTS.MAIN
-        return registerAt(slot, spec)
-      },
-      header(spec) {
-        return registerAt(UI_SLOTS.HEADER, spec)
-      },
-      main(spec) {
-        return registerAt(UI_SLOTS.MAIN, spec)
-      },
-      footer(spec) {
-        return registerAt(UI_SLOTS.FOOTER, spec)
-      },
-      lifecycle(options) {
-        registerScreenLifecycle({
-          screen: screenId,
-          ...(options && typeof options === 'object' ? options : {}),
-        })
-        return api
-      },
-      errorHandler(options) {
-        return registerErrorHandler(options)
-      },
-    }
-
-    return api
-  }
-
-  function registerScreenDefinition(definition) {
-    const screenId = asText(definition?.screen)
-    if (!screenId) {
-      throw new Error('Screen definition requires screen id')
-    }
-
-    const module = createScreenModule(screenId)
-
-    for (const entry of Array.isArray(definition?.errorHandlers) ? definition.errorHandlers : []) {
-      module.errorHandler(entry)
-    }
-
-    for (const entry of Array.isArray(definition?.actions) ? definition.actions : []) {
-      module.action(entry.id, entry.handler)
-    }
-
-    for (const entry of Array.isArray(definition?.widgets) ? definition.widgets : []) {
-      module.widget(entry)
-    }
-
-    for (const entry of Array.isArray(definition?.headers) ? definition.headers : []) {
-      module.header(entry)
-    }
-
-    for (const entry of Array.isArray(definition?.main) ? definition.main : []) {
-      module.main(entry)
-    }
-
-    for (const entry of Array.isArray(definition?.footers) ? definition.footers : []) {
-      module.footer(entry)
     }
 
     if (definition?.lifecycle && typeof definition.lifecycle === 'object') {
-      module.lifecycle(definition.lifecycle)
+      registerScreenLifecycle({
+        screen: screenId,
+        ...definition.lifecycle,
+      })
     }
   }
 
   return Object.freeze({
-    createScreenModule,
     registerScreenDefinition,
     getAction,
     getComponents,

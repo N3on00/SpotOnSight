@@ -22,7 +22,6 @@ export function createActorRegistry(actors) {
     actionFactories,
     runtimeBindings,
     uiRegistry,
-    createScreenModule: uiRegistry.createScreenModule,
     registerScreenDefinition: uiRegistry.registerScreenDefinition,
     getAction: uiRegistry.getAction,
     getComponents: uiRegistry.getComponents,
