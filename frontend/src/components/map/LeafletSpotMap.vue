@@ -265,11 +265,10 @@ function freeSpinEnabled() {
 function updateInteractionMode() {
   if (!viewer || isDisposed) return
   const controller = viewer.scene.screenSpaceCameraController
-  const freeSpin = freeSpinEnabled()
 
-  controller.enableTilt = freeSpin
-  controller.enableLook = freeSpin
-  viewer.camera.constrainedAxis = freeSpin ? undefined : Cartesian3.UNIT_Z
+  controller.enableTilt = true
+  controller.enableLook = false
+  viewer.camera.constrainedAxis = Cartesian3.UNIT_Z
 }
 
 function flyToPoint(lat, lon, zoom = props.zoom, immediate = false) {
