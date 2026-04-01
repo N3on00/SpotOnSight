@@ -66,6 +66,32 @@ const SETTINGS_SCREEN_DEFINITION = {
             successMessage: 'Your profile has been updated.',
           })
         },
+        onDeleteAccount: async (password) => {
+          await runBooleanAction(app, {
+            action: () => app.action('auth').deleteAccount(password),
+            loadingKey: 'settingsSave',
+            errorTitle: 'Account deletion failed',
+            errorMessage: 'Could not delete your account. Please check your password.',
+            errorDetails: () => actionLastError(app, 'auth'),
+            onSuccess: async () => {
+              app.auth.logout()
+              app.ui.navigate(app.core.uiScreens.HOME)
+            },
+            successTitle: 'Account deleted',
+            successMessage: 'Your account has been permanently deleted.',
+          })
+        },
+        onExportAccount: async () => {
+          const data = await app.action('auth').exportAccount()
+          if (!data) return
+          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = 'spotonsight-export.json'
+          a.click()
+          URL.revokeObjectURL(url)
+        },
       }),
     },
   ],

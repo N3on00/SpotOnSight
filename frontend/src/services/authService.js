@@ -123,4 +123,28 @@ export class AuthService extends ApiStateService {
   logout() {
     this.clearError()
   }
+
+  async deleteAccount(password) {
+    try {
+      await this.api.request(API_ENDPOINTS.AUTH_ACCOUNT_DELETE, {
+        body: { password },
+      })
+      this.clearError()
+      return true
+    } catch (error) {
+      this.captureError(error, 'Account deletion failed')
+      return false
+    }
+  }
+
+  async exportAccount() {
+    try {
+      const data = await this.api.request(API_ENDPOINTS.AUTH_ACCOUNT_EXPORT)
+      this.clearError()
+      return data
+    } catch (error) {
+      this.captureError(error, 'Account export failed')
+      return null
+    }
+  }
 }

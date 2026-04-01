@@ -18,6 +18,8 @@ const props = defineProps({
   onSave: { type: Function, required: true },
   onToggleTheme: { type: Function, required: true },
   onCopyUserId: { type: Function, required: true },
+  onDeleteAccount: { type: Function, default: null },
+  onExportAccount: { type: Function, default: null },
 })
 
 const form = reactive({
@@ -36,6 +38,8 @@ const form = reactive({
   showCurrentPassword: false,
   showNewPassword: false,
   showConfirmPassword: false,
+  showDeleteConfirm: false,
+  deletePassword: '',
 })
 
 const isDark = computed(() => String(props.theme || '').toLowerCase() === 'dark')
@@ -350,6 +354,62 @@ function submit() {
         class-name="btn btn-primary"
         @click="submit"
       />
+
+      <div v-if="onExportAccount" class="settings-export-section">
+        <hr class="my-4" />
+        <h3 class="h5 mb-2">Export Your Data</h3>
+        <p class="text-secondary mb-3">Download a copy of your account data including your profile, spots, and content.</p>
+        <ActionButton
+          label="Export data"
+          icon="bi-download"
+          class-name="btn btn-outline-secondary"
+          @click="onExportAccount"
+        />
+      </div>
+
+      <div v-if="onDeleteAccount" class="settings-delete-section">
+        <hr class="my-4" />
+        <h3 class="h5 mb-2 text-danger">Danger Zone</h3>
+        <p class="text-secondary mb-3">Once you delete your account, there is no going back.</p>
+        
+        <div v-if="!form.showDeleteConfirm">
+          <ActionButton
+            label="Delete account"
+            icon="bi-trash"
+            class-name="btn btn-outline-danger"
+            @click="form.showDeleteConfirm = true"
+          />
+        </div>
+        
+        <div v-else class="settings-delete-confirm">
+          <p class="text-danger fw-bold mb-2">Type your password to confirm deletion:</p>
+          <div class="input-group mb-2">
+            <AppTextField
+              bare
+              class-name="form-control"
+              type="password"
+              v-model="form.deletePassword"
+              placeholder="Enter password"
+              aria-label="Password confirmation"
+            />
+          </div>
+          <div class="d-flex gap-2">
+            <ActionButton
+              label="Cancel"
+              class-name="btn btn-outline-secondary"
+              @click="form.showDeleteConfirm = false; form.deletePassword = ''"
+            />
+            <ActionButton
+              label="Confirm Delete"
+              icon="bi-trash"
+              class-name="btn btn-danger"
+              :busy="busy"
+              :disabled="!form.deletePassword"
+              @click="onDeleteAccount(form.deletePassword)"
+            />
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 </template>

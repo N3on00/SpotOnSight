@@ -4,11 +4,12 @@ from datetime import UTC, datetime
 from typing import Any
 
 from bson import ObjectId
-from fastapi import APIRouter, Body, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from pydantic import ValidationError
 from pymongo.errors import DuplicateKeyError
 
 from core.text import normalize_email, normalize_login, normalize_search_text, normalize_text, normalize_username
+from services.auth.current_user import get_current_user
 from services.auth.password_service import password_service
 from services.auth.token_service import token_service
 
@@ -125,5 +126,62 @@ def build_auth_router(repository) -> APIRouter:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username/email or password")
 
         return _to_auth_response(AuthTokenResponse, UserPublic, user_doc)
+
+    @router.delete('/account')
+    async def delete_account(
+        payload: dict[str, Any] = Body(...),
+        current_user: dict[str, Any] = Depends(get_current_user),
+    ):
+        password = payload.get('password', '')
+        if not password:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Password required for account deletion')
+
+        user_id = current_user.get('_id')
+        if not user_id:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Not authenticated')
+
+        user_doc = repository.find_one({'_id': user_id})
+        if not user_doc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found')
+
+        password_hash = _as_text(user_doc.get('password_hash'))
+        if not password_service.verify_password(password, password_hash):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Incorrect password')
+
+        repository.delete_one({'_id': user_id})
+        return {'message': 'Account deleted successfully', 'deleted': True}
+
+    @router.get('/account/export')
+    async def export_account_data(
+        current_user: dict[str, Any] = Depends(get_current_user),
+    ):
+        from core.social.repositories import SocialRepositories
+        social_repos = SocialRepositories(repository)
+        
+        user_id = str(current_user.get('_id'))
+        
+        export_data = {
+            'profile': {
+                'username': _as_text(current_user.get('username')),
+                'email': _as_text(current_user.get('email')),
+                'display_name': _as_text(current_user.get('display_name')),
+                'bio': _as_text(current_user.get('bio')),
+                'created_at': str(current_user.get('created_at') or ''),
+            },
+            'spots': [],
+            'comments': [],
+            'meetups': [],
+        }
+        
+        for spot in social_repos.spots.find_many({'owner_id': user_id}):
+            export_data['spots'].append({
+                'title': _as_text(spot.get('title')),
+                'description': _as_text(spot.get('description')),
+                'lat': spot.get('lat'),
+                'lon': spot.get('lon'),
+                'created_at': str(spot.get('created_at') or ''),
+            })
+        
+        return export_data
 
     return router
