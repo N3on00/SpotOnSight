@@ -56,6 +56,10 @@ const ENDPOINT_FIXTURES = Object.freeze({
     },
     expectedPath: '/auth/account',
   },
+  [API_ENDPOINTS.AUTH_ACCOUNT_EXPORT]: {
+    options: {},
+    expectedPath: '/auth/account/export',
+  },
 
   [API_ENDPOINTS.SOCIAL_ME_GET]: {
     options: {},

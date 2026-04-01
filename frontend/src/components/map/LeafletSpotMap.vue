@@ -550,6 +550,7 @@ onMounted(() => {
     ImageryLayer.fromProviderAsync(
       Promise.resolve(new OpenStreetMapImageryProvider({
         url: 'https://tile.openstreetmap.org/',
+        credit: '© OpenStreetMap contributors',
       })),
     ),
   )

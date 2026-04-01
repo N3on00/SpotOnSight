@@ -136,4 +136,15 @@ export class AuthService extends ApiStateService {
       return false
     }
   }
+
+  async exportAccount() {
+    try {
+      const data = await this.api.request(API_ENDPOINTS.AUTH_ACCOUNT_EXPORT)
+      this.clearError()
+      return data
+    } catch (error) {
+      this.captureError(error, 'Account export failed')
+      return null
+    }
+  }
 }

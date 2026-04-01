@@ -48,6 +48,7 @@ export const API_ENDPOINTS = Object.freeze({
   AUTH_LOGIN: 'auth.login',
   AUTH_REGISTER: 'auth.register',
   AUTH_ACCOUNT_DELETE: 'auth.account.delete',
+  AUTH_ACCOUNT_EXPORT: 'auth.account.export',
 
   SOCIAL_ME_GET: 'social.me.get',
   SOCIAL_ME_UPDATE: 'social.me.update',
@@ -124,6 +125,12 @@ registerApiEndpoint({
   key: API_ENDPOINTS.AUTH_ACCOUNT_DELETE,
   method: 'DELETE',
   path: '/auth/account',
+})
+
+registerApiEndpoint({
+  key: API_ENDPOINTS.AUTH_ACCOUNT_EXPORT,
+  method: 'GET',
+  path: '/auth/account/export',
 })
 
 registerApiEndpoint({

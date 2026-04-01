@@ -19,6 +19,7 @@ const props = defineProps({
   onToggleTheme: { type: Function, required: true },
   onCopyUserId: { type: Function, required: true },
   onDeleteAccount: { type: Function, default: null },
+  onExportAccount: { type: Function, default: null },
 })
 
 const form = reactive({
@@ -353,6 +354,18 @@ function submit() {
         class-name="btn btn-primary"
         @click="submit"
       />
+
+      <div v-if="onExportAccount" class="settings-export-section">
+        <hr class="my-4" />
+        <h3 class="h5 mb-2">Export Your Data</h3>
+        <p class="text-secondary mb-3">Download a copy of your account data including your profile, spots, and content.</p>
+        <ActionButton
+          label="Export data"
+          icon="bi-download"
+          class-name="btn btn-outline-secondary"
+          @click="onExportAccount"
+        />
+      </div>
 
       <div v-if="onDeleteAccount" class="settings-delete-section">
         <hr class="my-4" />

@@ -151,4 +151,37 @@ def build_auth_router(repository) -> APIRouter:
         repository.delete_one({'_id': user_id})
         return {'message': 'Account deleted successfully', 'deleted': True}
 
+    @router.get('/account/export')
+    async def export_account_data(
+        current_user: dict[str, Any] = Depends(get_current_user),
+    ):
+        from core.social.repositories import SocialRepositories
+        social_repos = SocialRepositories(repository)
+        
+        user_id = str(current_user.get('_id'))
+        
+        export_data = {
+            'profile': {
+                'username': _as_text(current_user.get('username')),
+                'email': _as_text(current_user.get('email')),
+                'display_name': _as_text(current_user.get('display_name')),
+                'bio': _as_text(current_user.get('bio')),
+                'created_at': str(current_user.get('created_at') or ''),
+            },
+            'spots': [],
+            'comments': [],
+            'meetups': [],
+        }
+        
+        for spot in social_repos.spots.find_many({'owner_id': user_id}):
+            export_data['spots'].append({
+                'title': _as_text(spot.get('title')),
+                'description': _as_text(spot.get('description')),
+                'lat': spot.get('lat'),
+                'lon': spot.get('lon'),
+                'created_at': str(spot.get('created_at') or ''),
+            })
+        
+        return export_data
+
     return router
