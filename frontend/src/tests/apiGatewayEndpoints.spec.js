@@ -48,6 +48,14 @@ const ENDPOINT_FIXTURES = Object.freeze({
     },
     expectedPath: '/auth/register',
   },
+  [API_ENDPOINTS.AUTH_ACCOUNT_DELETE]: {
+    options: {
+      body: {
+        password: 'password123',
+      },
+    },
+    expectedPath: '/auth/account',
+  },
 
   [API_ENDPOINTS.SOCIAL_ME_GET]: {
     options: {},

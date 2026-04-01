@@ -66,6 +66,21 @@ const SETTINGS_SCREEN_DEFINITION = {
             successMessage: 'Your profile has been updated.',
           })
         },
+        onDeleteAccount: async (password) => {
+          await runBooleanAction(app, {
+            action: () => app.action('auth').deleteAccount(password),
+            loadingKey: 'settingsSave',
+            errorTitle: 'Account deletion failed',
+            errorMessage: 'Could not delete your account. Please check your password.',
+            errorDetails: () => actionLastError(app, 'auth'),
+            onSuccess: async () => {
+              app.auth.logout()
+              app.ui.navigate(app.core.uiScreens.HOME)
+            },
+            successTitle: 'Account deleted',
+            successMessage: 'Your account has been permanently deleted.',
+          })
+        },
       }),
     },
   ],
