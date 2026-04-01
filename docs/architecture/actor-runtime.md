@@ -218,11 +218,12 @@ This style only stays healthy if the boundaries are strict.
 
 ## How This Maps To Current SpotOnSight
 
-The current codebase already hints at this direction with registries and reusable wiring, but it is not yet cleanly split.
+The codebase now reflects much of this direction:
 
-- `backend/models/schemas.py` currently mixes DTOs and workflow registration; those should be separated
-- `backend/core/social/actions.py` currently behaves like a feature monolith; its responsibilities should be distributed into reusable actors plus workflow definitions
-- `frontend/src/bootstrap/appBootstrap.js` and `frontend/src/core/screenRegistry.js` already show a stronger composition mindset and are good foundations for a data-driven runtime
+- backend route composition is declared through explicit route manifests instead of generic CRUD registration
+- backend social behavior is split into focused action modules plus reusable workflow/runtime helpers
+- frontend composition is owned by actor manifests and instance-scoped UI/runtime registries
+- frontend actions own orchestration and state mutation while services stay focused on IO
 
 ## Recommended Refactor Direction
 

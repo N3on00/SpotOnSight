@@ -28,13 +28,16 @@ function createBehaviorHarness() {
     friendDirectory: vi.fn(async () => []),
   }
 
-  const app = {
-    controller: (id) => {
+  const action = (id) => {
       if (id === 'spots') return spotsController
       if (id === 'social') return socialController
       if (id === 'users') return usersController
-      throw new Error(`Unknown controller: ${id}`)
-    },
+      throw new Error(`Unknown action: ${id}`)
+    }
+
+  const app = {
+    action,
+    controller: action,
     service: (id) => {
       if (id === 'notify') return { push: notifyPush }
       if (id === 'locationSearch') {

@@ -65,8 +65,8 @@ describe('Page harness classes and registry contracts', () => {
     }
 
     if (screen === UI_SCREENS.HOME || screen === UI_SCREENS.MAP || screen === UI_SCREENS.SOCIAL) {
-      expect(page.controllers.spots.reload).toHaveBeenCalled()
-      expect(page.controllers.social.reloadFavorites).toHaveBeenCalled()
+      expect(page.actions.spots.reload).toHaveBeenCalled()
+      expect(page.actions.social.reloadFavorites).toHaveBeenCalled()
     }
   })
 })
@@ -92,13 +92,13 @@ describe('Auth page harness', () => {
       password: 'Password123!',
     })
 
-    expect(page.controllers.auth.login).toHaveBeenCalledWith('demo-user', 'Password123!')
-    expect(page.controllers.auth.register).toHaveBeenCalledWith(expect.objectContaining({
+    expect(page.actions.auth.login).toHaveBeenCalledWith('demo-user', 'Password123!')
+    expect(page.actions.auth.register).toHaveBeenCalledWith(expect.objectContaining({
       username: 'new-user',
       email: 'new-user@example.test',
     }))
-    expect(page.controllers.spots.reload).toHaveBeenCalled()
-    expect(page.controllers.social.reloadFavorites).toHaveBeenCalled()
+    expect(page.actions.spots.reload).toHaveBeenCalled()
+    expect(page.actions.social.reloadFavorites).toHaveBeenCalled()
     expect(page.router.push).toHaveBeenCalledWith({ name: UI_SCREENS.HOME })
   })
 })
@@ -108,16 +108,16 @@ describe('Admin page harness', () => {
     const page = new AdminPageHarness()
 
     await page.runAction(UI_ACTIONS.ADMIN_REFRESH)
-    expect(page.controllers.admin.loadReports).toHaveBeenCalledWith('all', 300)
-    expect(page.controllers.admin.loadUsers).toHaveBeenCalledWith('', 100)
-    expect(page.controllers.spots.reload).toHaveBeenCalled()
+    expect(page.actions.admin.loadReports).toHaveBeenCalledWith('all', 300)
+    expect(page.actions.admin.loadUsers).toHaveBeenCalledWith('', 100)
+    expect(page.actions.spots.reload).toHaveBeenCalled()
 
     const panelProps = page.buildComponentProps(UI_COMPONENT_IDS.ADMIN_PANEL)
     await panelProps.onReviewReport('report-1', { status: 'dismissed', action: 'none', severity: 'low', admin_notes: '' })
     await panelProps.onUpdateUser('user-7', { account_status: 'active', reason: 'Cleared', posting_timeout_until: null })
 
-    expect(page.controllers.admin.reviewReport).toHaveBeenCalledWith('report-1', expect.objectContaining({ status: 'dismissed' }))
-    expect(page.controllers.admin.updateUserStatus).toHaveBeenCalledWith('user-7', expect.objectContaining({ account_status: 'active' }))
+    expect(page.actions.admin.reviewReport).toHaveBeenCalledWith('report-1', expect.objectContaining({ status: 'dismissed' }))
+    expect(page.actions.admin.updateUserStatus).toHaveBeenCalledWith('user-7', expect.objectContaining({ account_status: 'active' }))
   })
 })
 
@@ -152,9 +152,9 @@ describe('Home page harness', () => {
     await discoverProps.onLoadUserProfile('user-2')
     discoverProps.onOpenProfile('user-3')
 
-    expect(page.controllers.spots.reload).toHaveBeenCalled()
-    expect(page.controllers.social.toggleFavorite).toHaveBeenCalledWith('spot-1', true)
-    expect(page.controllers.users.profile).toHaveBeenCalledWith('user-2')
+    expect(page.actions.spots.reload).toHaveBeenCalled()
+    expect(page.actions.social.toggleFavorite).toHaveBeenCalledWith('spot-1', true)
+    expect(page.actions.users.profile).toHaveBeenCalledWith('user-2')
     expect(page.router.push).toHaveBeenCalledWith({
       name: UI_SCREENS.PROFILE,
       params: {
@@ -183,8 +183,8 @@ describe('Map page harness', () => {
 
     const headerProps = page.buildComponentProps(UI_COMPONENT_IDS.MAP_HEADER)
     await headerProps.onReload()
-    expect(page.controllers.spots.reload).toHaveBeenCalled()
-    expect(page.controllers.social.reloadFavorites).toHaveBeenCalled()
+    expect(page.actions.spots.reload).toHaveBeenCalled()
+    expect(page.actions.social.reloadFavorites).toHaveBeenCalled()
     expect(page.services.notify.push).toHaveBeenCalledWith(expect.objectContaining({
       title: 'Map refreshed',
     }))
@@ -205,10 +205,10 @@ describe('Profile page harness', () => {
     const page = new ProfilePageHarness()
 
     await page.runAction(UI_ACTIONS.PROFILE_REFRESH, { userId: 'user-2' })
-    expect(page.controllers.users.profile).toHaveBeenCalledWith('user-2')
-    expect(page.controllers.spots.byUser).toHaveBeenCalledWith('user-2')
-    expect(page.controllers.spots.favoritesOfUser).toHaveBeenCalledWith('user-2')
-    expect(page.controllers.social.followingOf).toHaveBeenCalledWith('user-1')
+    expect(page.actions.users.profile).toHaveBeenCalledWith('user-2')
+    expect(page.actions.spots.byUser).toHaveBeenCalledWith('user-2')
+    expect(page.actions.spots.favoritesOfUser).toHaveBeenCalledWith('user-2')
+    expect(page.actions.social.followingOf).toHaveBeenCalledWith('user-1')
 
     const summaryProps = page.buildComponentProps(UI_COMPONENT_IDS.PROFILE_SUMMARY)
     await summaryProps.onFollowProfile()
@@ -218,10 +218,10 @@ describe('Profile page harness', () => {
     await summaryProps.onToggleFavorite('spot-2', false)
     summaryProps.onOpenProfile('user-3')
 
-    expect(page.controllers.social.follow).toHaveBeenCalledWith('user-2')
-    expect(page.controllers.social.unfollow).toHaveBeenCalledWith('user-2')
-    expect(page.controllers.social.reportContent).toHaveBeenCalledWith('user', 'user-2', 'other', expect.any(String))
-    expect(page.controllers.social.toggleFavorite).toHaveBeenCalledWith('spot-2', false)
+    expect(page.actions.social.follow).toHaveBeenCalledWith('user-2')
+    expect(page.actions.social.unfollow).toHaveBeenCalledWith('user-2')
+    expect(page.actions.social.reportContent).toHaveBeenCalledWith('user', 'user-2', 'other', expect.any(String))
+    expect(page.actions.social.toggleFavorite).toHaveBeenCalledWith('spot-2', false)
     expect(page.router.push).toHaveBeenCalledWith({
       name: UI_SCREENS.MAP,
       query: {
@@ -256,16 +256,16 @@ describe('Settings page harness', () => {
 
     expect(writeText).toHaveBeenCalledWith('user-1')
     expect(page.state.ui.theme).toBe('dark')
-    expect(page.controllers.users.updateProfile).toHaveBeenCalledWith(expect.objectContaining({
+    expect(page.actions.users.updateProfile).toHaveBeenCalledWith(expect.objectContaining({
       displayName: 'Updated Demo User',
     }))
-    expect(page.controllers.spots.reload).toHaveBeenCalled()
-    expect(page.controllers.social.followersOf).toHaveBeenCalledWith('user-1')
+    expect(page.actions.spots.reload).toHaveBeenCalled()
+    expect(page.actions.social.followersOf).toHaveBeenCalledWith('user-1')
   })
 })
 
 describe('Social page harness', () => {
-  it('runs social hub callbacks against mock controllers', async () => {
+  it('runs social hub callbacks against mock actions', async () => {
     const page = new SocialPageHarness()
     const hubProps = page.buildComponentProps(UI_COMPONENT_IDS.SOCIAL_HUB)
 
@@ -280,19 +280,19 @@ describe('Social page harness', () => {
     await hubProps.onUnblock('user-6')
     hubProps.onOpenProfile('user-3')
 
-    expect(page.controllers.users.searchUsers).toHaveBeenCalledWith('demo', 30)
+    expect(page.actions.users.searchUsers).toHaveBeenCalledWith('demo', 30)
     expect(page.state.social.searchResults).toEqual(expect.arrayContaining([
       expect.objectContaining({
         username: 'demo-match',
       }),
     ]))
-    expect(page.controllers.social.follow).toHaveBeenCalledWith('user-2')
-    expect(page.controllers.social.unfollow).toHaveBeenCalledWith('user-2')
-    expect(page.controllers.social.approveRequest).toHaveBeenCalledWith('user-5')
-    expect(page.controllers.social.rejectRequest).toHaveBeenCalledWith('user-5')
-    expect(page.controllers.social.removeFollower).toHaveBeenCalledWith('user-4')
-    expect(page.controllers.social.block).toHaveBeenCalledWith('user-6')
-    expect(page.controllers.social.unblock).toHaveBeenCalledWith('user-6')
+    expect(page.actions.social.follow).toHaveBeenCalledWith('user-2')
+    expect(page.actions.social.unfollow).toHaveBeenCalledWith('user-2')
+    expect(page.actions.social.approveRequest).toHaveBeenCalledWith('user-5')
+    expect(page.actions.social.rejectRequest).toHaveBeenCalledWith('user-5')
+    expect(page.actions.social.removeFollower).toHaveBeenCalledWith('user-4')
+    expect(page.actions.social.block).toHaveBeenCalledWith('user-6')
+    expect(page.actions.social.unblock).toHaveBeenCalledWith('user-6')
     expect(page.router.push).toHaveBeenCalledWith({
       name: UI_SCREENS.PROFILE,
       params: {
@@ -328,6 +328,6 @@ describe('Support page harness', () => {
 
     const ok = await supportProps.onSubmit(payload)
     expect(ok).toBe(true)
-    expect(page.controllers.support.submitTicket).toHaveBeenCalledWith(payload)
+    expect(page.actions.support.submitTicket).toHaveBeenCalledWith(payload)
   })
 })

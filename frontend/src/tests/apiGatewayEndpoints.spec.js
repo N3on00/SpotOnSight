@@ -1,11 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { API_ENDPOINTS, getApiEndpointBindings } from '../api/registry'
-import { ApiController } from '../controllers/apiController'
 import { ApiGatewayService } from '../services/apiGatewayService'
 
 class TestApiGatewayService extends ApiGatewayService {}
-class TestApiController extends ApiController {}
 
 function createState({ token = 'session-token', userId = 'me-1' } = {}) {
   return {
@@ -534,28 +532,3 @@ describe('ApiGatewayService endpoint dispatch', () => {
   })
 })
 
-describe('ApiController passthrough', () => {
-  it('forwards requests to the gateway service', async () => {
-    const requestMock = vi.fn(async () => ({ ok: true }))
-    const ctx = {
-      service: vi.fn((id) => {
-        if (id !== 'apiGateway') {
-          throw new Error(`unexpected service: ${id}`)
-        }
-        return {
-          request: requestMock,
-        }
-      }),
-    }
-
-    const controller = new TestApiController(ctx)
-    const output = await controller.request(API_ENDPOINTS.SOCIAL_SPOTS_LIST, {
-      query: { page: 1 },
-    })
-
-    expect(output).toEqual({ ok: true })
-    expect(requestMock).toHaveBeenCalledWith(API_ENDPOINTS.SOCIAL_SPOTS_LIST, {
-      query: { page: 1 },
-    })
-  })
-})

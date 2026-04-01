@@ -25,7 +25,7 @@ def _canonical_spot_keys(spot_id: str, spot_key: object) -> list[str]:
 class SpotsService(SocialServiceBase):
     def list_visible_spots(self, current_user: dict[str, Any]) -> list[SpotPublic]:
         me_id = self.me_id(current_user)
-        docs = list(self.repos.spots.collection.find({}).sort("created_at", -1).limit(1500))
+        docs = self.repos.spots.find_all_sorted(sort_field="created_at", sort_direction=-1, limit=1500)
         return [to_spot_public(doc) for doc in docs if can_view_spot(self.repos, me_id, doc)]
 
     def create_spot(self, req: SpotUpsertRequest, current_user: dict[str, Any]) -> SpotPublic:
@@ -61,7 +61,7 @@ class SpotsService(SocialServiceBase):
 
         spot_key = existing.get("_id")
         spot_keys = _canonical_spot_keys(spot_id, spot_key)
-        self.repos.spots.collection.delete_one({"_id": spot_key})
+        self.repos.spots.delete_one_by_query({"_id": spot_key})
         self.repos.favorites.delete_many({"spot_id": {"$in": spot_keys}})
         self.repos.shares.delete_many({"spot_id": {"$in": spot_keys}})
         self.repos.comments.delete_many({"spot_id": {"$in": spot_keys}})
@@ -73,5 +73,5 @@ class SpotsService(SocialServiceBase):
         if me_id != target_id and is_blocked_pair(self.repos, me_id, target_id):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
-        docs = list(self.repos.spots.collection.find({"owner_id": target_id}).sort("created_at", -1).limit(1200))
+        docs = self.repos.spots.find_many_sorted({"owner_id": target_id}, sort_field="created_at", sort_direction=-1, limit=1200)
         return [to_spot_public(doc) for doc in docs if can_view_spot(self.repos, me_id, doc)]

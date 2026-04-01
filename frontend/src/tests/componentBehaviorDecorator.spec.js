@@ -2,8 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { registerComponentDecorators } from '../bootstrap/componentDecoratorRegistrations'
 import { ComponentBehavior } from '../core/componentBehavior'
-import { getComponents } from '../core/registry'
-import { createScreenModule } from '../core/screenRegistry'
+import { createUiRegistryBuilder } from '../core/uiRegistryBuilder'
 import { UI_SLOTS } from '../core/uiElements'
 
 class TestWidgetBehavior extends ComponentBehavior {
@@ -57,7 +56,8 @@ describe('Component behavior decorator', () => {
 
     const screen = `spec.behavior.${Date.now()}`
     const widgetId = `${screen}.widget`
-    const module = createScreenModule(screen)
+    const uiRegistry = createUiRegistryBuilder()
+    const module = uiRegistry.createScreenModule(screen)
 
     module.main({
       id: widgetId,
@@ -69,7 +69,7 @@ describe('Component behavior decorator', () => {
       }),
     })
 
-    const specs = getComponents(screen, UI_SLOTS.MAIN)
+    const specs = uiRegistry.getComponents(screen, UI_SLOTS.MAIN)
     expect(specs).toHaveLength(1)
 
     const ctx = createContext()

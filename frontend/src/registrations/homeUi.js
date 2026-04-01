@@ -1,4 +1,3 @@
-import { createScreenModule } from '../core/screenRegistry'
 import { UI_ACTIONS, UI_COMPONENT_IDS, UI_SCREENS } from '../core/uiElements'
 import { routeToMap, routeToProfile } from '../router/routeSpec'
 import HomeHero from '../components/home/HomeHero.vue'
@@ -8,7 +7,7 @@ import {
   createModerationActions,
   createSpotCommentActions,
   createSpotFavoriteAction,
-  controllerLastError,
+  actionLastError,
   mergeUniqueDetails,
   notify,
   reloadDashboardData,
@@ -17,8 +16,8 @@ import {
 
 function _homeSyncErrorDetails(app) {
   return mergeUniqueDetails(
-    controllerLastError(app, 'spots'),
-    controllerLastError(app, 'social'),
+    actionLastError(app, 'spots'),
+    actionLastError(app, 'social'),
   )
 }
 
@@ -50,81 +49,93 @@ function _goToSpot(app, router, spot) {
   _openMap(router, { lat, lon, spotId })
 }
 
-const homeScreen = createScreenModule(UI_SCREENS.HOME)
+const registeredRegistries = new WeakSet()
 
-homeScreen.action(UI_ACTIONS.HOME_REFRESH, async ({ app }) => {
-  await _reloadHomeDashboardStrict(app)
-})
-
-homeScreen.header({
-  id: UI_COMPONENT_IDS.HOME_HERO,
-  order: 10,
-  component: HomeHero,
-  buildProps: ({ app }) => ({
-    username: app.state.session.user?.display_name || app.state.session.user?.username || '',
-  }),
-})
-
-homeScreen.main({
-  id: UI_COMPONENT_IDS.HOME_MAP_WIDGET,
-  order: 8,
-  component: HomeMapWidget,
-  buildProps: ({ app, router }) => ({
-    spots: app.state.spots,
-    onOpenMap: (focus = null) => {
-      const src = focus && typeof focus === 'object' ? focus : {}
-      const lat = Number(src.lat)
-      const lon = Number(src.lon)
-      _openMap(router, {
-        lat: Number.isFinite(lat) ? lat : null,
-        lon: Number.isFinite(lon) ? lon : null,
-      })
+const HOME_SCREEN_DEFINITION = {
+  screen: UI_SCREENS.HOME,
+  actions: [
+    {
+      id: UI_ACTIONS.HOME_REFRESH,
+      handler: async ({ app }) => {
+        await _reloadHomeDashboardStrict(app)
+      },
     },
-    onOpenSpot: (spot) => _goToSpot(app, router, spot),
-  }),
-})
-
-homeScreen.main({
-  id: UI_COMPONENT_IDS.HOME_DISCOVER,
-  order: 10,
-  component: HomeDiscover,
-  buildProps: ({ app, router }) => ({
-    spots: app.state.spots,
-    favorites: app.state.favorites,
-    refreshBusy: app.state.loading.homeRefresh,
-    onOpenProfile: (userId) => {
-      const nextId = typeof userId === 'string' && userId.trim()
-        ? userId.trim()
-        : String(app.state.session.user?.id || '')
-      router.push(routeToProfile(nextId))
+  ],
+  headers: [
+    {
+      id: UI_COMPONENT_IDS.HOME_HERO,
+      order: 10,
+      component: HomeHero,
+      buildProps: ({ app }) => ({
+        username: app.state.session.user?.display_name || app.state.session.user?.username || '',
+      }),
     },
-    onRefresh: async () => {
-      await runTask(app, {
-        loadingKey: 'homeRefresh',
-        task: () => _reloadHomeDashboardStrict(app),
-        errorTitle: 'Sync failed',
-        errorMessage: 'Could not sync spots and social data.',
-        errorDetails: (error) => String(error?.message || error || ''),
-        successTitle: 'Synced',
-        successMessage: 'Spots and social data updated.',
-      })
+  ],
+  main: [
+    {
+      id: UI_COMPONENT_IDS.HOME_MAP_WIDGET,
+      order: 8,
+      component: HomeMapWidget,
+      buildProps: ({ app, router }) => ({
+        spots: app.state.spots,
+        onOpenMap: (focus = null) => {
+          const src = focus && typeof focus === 'object' ? focus : {}
+          const lat = Number(src.lat)
+          const lon = Number(src.lon)
+          _openMap(router, {
+            lat: Number.isFinite(lat) ? lat : null,
+            lon: Number.isFinite(lon) ? lon : null,
+          })
+        },
+        onOpenSpot: (spot) => _goToSpot(app, router, spot),
+      }),
     },
-    onGoToSpot: (spot) => _goToSpot(app, router, spot),
-    onToggleFavorite: createSpotFavoriteAction(app),
-    ...createModerationActions(app),
-    onLoadUserProfile: async (userId) => {
-      return app.controller('users').profile(userId)
+    {
+      id: UI_COMPONENT_IDS.HOME_DISCOVER,
+      order: 10,
+      component: HomeDiscover,
+      buildProps: ({ app, router }) => ({
+        spots: app.state.spots,
+        favorites: app.state.favorites,
+        refreshBusy: app.state.loading.homeRefresh,
+        onOpenProfile: (userId) => {
+          const nextId = typeof userId === 'string' && userId.trim()
+            ? userId.trim()
+            : String(app.state.session.user?.id || '')
+          router.push(routeToProfile(nextId))
+        },
+        onRefresh: async () => {
+          await runTask(app, {
+            loadingKey: 'homeRefresh',
+            task: () => _reloadHomeDashboardStrict(app),
+            errorTitle: 'Sync failed',
+            errorMessage: 'Could not sync spots and social data.',
+            errorDetails: (error) => String(error?.message || error || ''),
+            successTitle: 'Synced',
+            successMessage: 'Spots and social data updated.',
+          })
+        },
+        onGoToSpot: (spot) => _goToSpot(app, router, spot),
+        onToggleFavorite: createSpotFavoriteAction(app),
+        ...createModerationActions(app),
+        onLoadUserProfile: async (userId) => app.action('users').profile(userId),
+        currentUserId: app.state.session.user?.id || '',
+        ...createSpotCommentActions(app),
+        onNotify: (payload) => notify(app, payload),
+      }),
     },
-    currentUserId: app.state.session.user?.id || '',
-    ...createSpotCommentActions(app),
-    onNotify: (payload) => notify(app, payload),
-  }),
-})
-
-homeScreen.lifecycle({
-  onEnter: async ({ app }) => {
-    await app.ui.runAction(UI_ACTIONS.HOME_REFRESH)
+  ],
+  lifecycle: {
+    onEnter: async ({ app }) => {
+      await app.ui.runAction(UI_ACTIONS.HOME_REFRESH)
+    },
+    errorTitle: 'Dashboard load failed',
+    errorMessage: 'Could not initialize home screen.',
   },
-  errorTitle: 'Dashboard load failed',
-  errorMessage: 'Could not initialize home screen.',
-})
+}
+
+export function registerHomeUi(registry) {
+  if (registeredRegistries.has(registry)) return
+  registeredRegistries.add(registry)
+  registry.registerScreenDefinition(HOME_SCREEN_DEFINITION)
+}

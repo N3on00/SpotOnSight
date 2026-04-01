@@ -7,10 +7,6 @@ from pymongo import ASCENDING
 from core.text import normalize_email, normalize_search_text, normalize_text, normalize_username
 from repositories.mongo_repository import MongoRepository
 
-
-_AUTH_REPOSITORY: MongoRepository | None = None
-
-
 def auth_db_name() -> str:
     return str(os.getenv("MONGO_AUTH_DB") or "SpotOnSightAuth").strip() or "SpotOnSightAuth"
 
@@ -25,7 +21,7 @@ def _create_repository() -> MongoRepository:
     )
 
     try:
-        for user in repo.collection.find({}, {"_id": 1, "username": 1, "email": 1, "display_name": 1}):
+        for user in repo.find_many({}, {"_id": 1, "username": 1, "email": 1, "display_name": 1}):
             username = normalize_username(user.get("username"))
             email = normalize_email(user.get("email"))
             display_name = normalize_text(user.get("display_name") or username)
@@ -38,22 +34,19 @@ def _create_repository() -> MongoRepository:
                 "display_name": display_name,
                 "display_name_search": normalize_search_text(display_name),
             }
-            repo.collection.update_one({"_id": user["_id"]}, {"$set": updates})
+            repo.update_fields({"_id": user["_id"]}, updates)
 
-        repo.collection.create_index([("username", ASCENDING)], unique=True)
-        repo.collection.create_index([("email", ASCENDING)], unique=True)
-        repo.collection.create_index([("display_name", ASCENDING)])
-        repo.collection.create_index([("username_key", ASCENDING)], unique=True, sparse=True)
-        repo.collection.create_index([("email_key", ASCENDING)], unique=True, sparse=True)
-        repo.collection.create_index([("username_search", ASCENDING)])
-        repo.collection.create_index([("display_name_search", ASCENDING)])
+        repo.create_index([("username", ASCENDING)], unique=True)
+        repo.create_index([("email", ASCENDING)], unique=True)
+        repo.create_index([("display_name", ASCENDING)])
+        repo.create_index([("username_key", ASCENDING)], unique=True, sparse=True)
+        repo.create_index([("email_key", ASCENDING)], unique=True, sparse=True)
+        repo.create_index([("username_search", ASCENDING)])
+        repo.create_index([("display_name_search", ASCENDING)])
     except Exception:
         pass
     return repo
 
 
 def get_auth_user_repository() -> MongoRepository:
-    global _AUTH_REPOSITORY
-    if _AUTH_REPOSITORY is None:
-        _AUTH_REPOSITORY = _create_repository()
-    return _AUTH_REPOSITORY
+    return _create_repository()

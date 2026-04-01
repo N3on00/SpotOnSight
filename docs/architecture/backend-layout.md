@@ -1,14 +1,16 @@
 # Backend Layout
 
 - `api/`: route registration and HTTP boundary logic
-- `services/`: feature workflows for auth, spots, follows, support, comments, and meetups
+- `services/`: auth and platform-facing service helpers
 - `repositories/`: Mongo adapters and auth repository setup
 - `models/`: Pydantic request and response schemas
-- `core/`: startup lifecycle, registry wiring, admin bootstrap, and shared social helpers
+- `core/`: startup lifecycle, admin bootstrap, social action modules, workflow runtime, and shared helpers
 
-Design rule: routes validate and delegate; services make decisions; repositories talk to MongoDB.
+Design rule: routes validate and delegate; domain actions and workflows make decisions; repositories talk to MongoDB.
 
-Target rule: feature workflows should keep shrinking into a generic actor runtime where:
+Current rule: route manifests declare the varying HTTP surface while generic route-building stays minimal and explicit.
+
+Actor/runtime direction:
 
 - workflow definitions describe intent and ordering
 - actors execute one capability each

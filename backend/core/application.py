@@ -6,11 +6,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes.auth import get_auth_router
-from core.registry import get_routers
+from api.routes.auth import build_auth_router
+from api.routes.entity_routes import build_entity_routers
 from core.admin_setup import ensure_admin_user
-from api.routes.social import get_social_router
+from api.routes.social import build_social_router
+from core.social.repositories import SocialRepositories
 from repositories.mongo_repository import ping_mongo
+from repositories.auth_repository import get_auth_user_repository
 
 
 def _cors_origins() -> list[str]:
@@ -35,7 +37,7 @@ async def lifespan(app: FastAPI):
     """Startup and shutdown lifecycle handler."""
     print("[STARTUP] Ensuring admin user exists...")
     try:
-        ensure_admin_user()
+        ensure_admin_user(app.state.auth_repository)
     except Exception as e:
         print(f"[STARTUP] Warning: Could not ensure admin user: {e}")
     yield
@@ -43,14 +45,14 @@ async def lifespan(app: FastAPI):
 
 
 class Routing:
-    """FastAPI app builder.
-
-    Important: DTO modules must be imported before building the app,
-    so @mongo_entity decorators can register their routers.
-    """
+    """FastAPI app builder with explicit dependency wiring."""
 
     def __init__(self) -> None:
         self._app = FastAPI(lifespan=lifespan)
+        auth_repository = get_auth_user_repository()
+        social_repositories = SocialRepositories(auth_repository)
+        self._app.state.auth_repository = auth_repository
+        self._app.state.social_repositories = social_repositories
         self._app.add_middleware(
             CORSMiddleware,
             allow_origins=_cors_origins(),
@@ -58,11 +60,11 @@ class Routing:
             allow_headers=["*"],
         )
 
-        for router in get_routers():
+        for router in build_entity_routers():
             self._app.include_router(router)
 
-        self._app.include_router(get_auth_router())
-        self._app.include_router(get_social_router())
+        self._app.include_router(build_auth_router(auth_repository))
+        self._app.include_router(build_social_router(social_repositories))
 
         @self._app.get("/health", tags=["Health"])
         def healthcheck(response: Response) -> dict[str, object]:

@@ -54,7 +54,7 @@ function createApp() {
     ui: {
       isAuthenticated: () => true,
     },
-    controller: () => ({
+    action: () => ({
       logout: vi.fn(),
     }),
     service: () => ({

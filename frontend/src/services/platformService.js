@@ -1,5 +1,3 @@
-import { normalizeFilterSubscription } from '../models/spotSubscriptions'
-import { normalizeUser } from '../models/userMapper'
 import {
   addAppStateChangeListener,
   addKeyboardVisibilityListeners,
@@ -11,55 +9,28 @@ import {
   removeListener,
   setStatusBarTheme,
 } from '../platform/capacitorBridge'
+import {
+  loadFilterSubscriptionsForUserAsync,
+  normalizeStoredSession,
+  normalizeStoredTheme,
+  persistFilterSubscriptionsToStorageAsync,
+  SESSION_KEY,
+  THEME_KEY,
+} from '../stores/persistence'
+import { setFilterSubscriptions, setSessionState, setTheme } from '../state/appMutations'
 import { asText } from '../utils/sanitizers'
 import { BaseService } from './baseService'
 
-const SESSION_KEY = 'sos_web_session_v1'
-const THEME_KEY = 'sos_web_theme_v1'
-const FILTER_SUBSCRIPTIONS_KEY_PREFIX = 'sos_map_filter_subscriptions_v2'
-
-function parseJson(value, fallback) {
-  try {
-    return JSON.parse(String(value || ''))
-  } catch {
-    return fallback
-  }
-}
-
-function normalizeStoredSession(rawValue) {
-  const parsed = parseJson(rawValue, null)
-  if (!parsed || typeof parsed !== 'object') {
-    return { token: '', user: null }
-  }
-
-  return {
-    token: asText(parsed.token),
-    user: parsed.user && typeof parsed.user === 'object' ? normalizeUser(parsed.user) : null,
-  }
-}
-
-function normalizeStoredTheme(rawValue) {
-  return asText(rawValue).toLowerCase() === 'dark' ? 'dark' : 'light'
-}
-
-function filterSubscriptionsStorageKey(userId) {
-  return `${FILTER_SUBSCRIPTIONS_KEY_PREFIX}:${asText(userId)}`
-}
-
-function normalizeStoredFilterSubscriptions(rawValue, userId) {
-  const ownerUserId = asText(userId)
-  if (!ownerUserId) return []
-
-  const parsed = parseJson(rawValue, [])
-  if (!Array.isArray(parsed)) return []
-
-  return parsed
-    .map((entry) => normalizeFilterSubscription(entry))
-    .filter(Boolean)
-    .map((entry) => ({
-      ...entry,
-      ownerUserId,
-    }))
+const nativeStorage = {
+  async getItem(key) {
+    return preferenceGet(key)
+  },
+  async setItem(key, value) {
+    await preferenceSet(key, value)
+  },
+  async removeItem(key) {
+    await preferenceRemove(key)
+  },
 }
 
 function bodyClassList() {
@@ -94,11 +65,10 @@ export class PlatformService extends BaseService {
   async hydrateState() {
     if (!this.isNative()) return
 
-    const session = normalizeStoredSession(await preferenceGet(SESSION_KEY))
-    this.state.session.token = session.token
-    this.state.session.user = session.user
+    const session = normalizeStoredSession(await nativeStorage.getItem(SESSION_KEY))
+    setSessionState(this.state, session)
 
-    this.state.ui.theme = normalizeStoredTheme(await preferenceGet(THEME_KEY))
+    setTheme(this.state, normalizeStoredTheme(await nativeStorage.getItem(THEME_KEY)))
 
     await this.syncUserFilterSubscriptions()
   }
@@ -108,12 +78,11 @@ export class PlatformService extends BaseService {
 
     const ownerUserId = asText(this.state.session?.user?.id)
     if (!ownerUserId) {
-      this.state.map.filterSubscriptions = []
+      setFilterSubscriptions(this.state, [])
       return
     }
 
-    const raw = await preferenceGet(filterSubscriptionsStorageKey(ownerUserId))
-    this.state.map.filterSubscriptions = normalizeStoredFilterSubscriptions(raw, ownerUserId)
+    setFilterSubscriptions(this.state, await loadFilterSubscriptionsForUserAsync(nativeStorage, ownerUserId))
   }
 
   async persistSession() {
@@ -125,18 +94,18 @@ export class PlatformService extends BaseService {
       : null
 
     if (!token || !user) {
-      await preferenceRemove(SESSION_KEY)
+      await nativeStorage.removeItem(SESSION_KEY)
       return
     }
 
-    await preferenceSet(SESSION_KEY, JSON.stringify({ token, user }))
+    await nativeStorage.setItem(SESSION_KEY, JSON.stringify({ token, user }))
   }
 
   async persistTheme() {
     if (!this.isNative()) return
 
     const theme = normalizeStoredTheme(this.state.ui?.theme)
-    await preferenceSet(THEME_KEY, theme)
+    await nativeStorage.setItem(THEME_KEY, theme)
   }
 
   async persistFilterSubscriptions() {
@@ -150,15 +119,8 @@ export class PlatformService extends BaseService {
     const source = Array.isArray(this.state.map?.filterSubscriptions)
       ? this.state.map.filterSubscriptions
       : []
-    const normalized = source
-      .map((entry) => normalizeFilterSubscription(entry))
-      .filter(Boolean)
-      .map((entry) => ({
-        ...entry,
-        ownerUserId,
-      }))
 
-    await preferenceSet(filterSubscriptionsStorageKey(ownerUserId), JSON.stringify(normalized))
+    await persistFilterSubscriptionsToStorageAsync(nativeStorage, ownerUserId, source)
   }
 
   async initializeRuntimeLifecycle(runtime) {

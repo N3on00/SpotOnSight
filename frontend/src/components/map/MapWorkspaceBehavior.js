@@ -1,13 +1,14 @@
 import { ComponentBehavior } from '../../core/componentBehavior'
 import { UI_ACTIONS } from '../../core/uiElements'
 import { routeToProfile, routeToSocial } from '../../router/routeSpec'
+import { setMeetupCreationSpot } from '../../state/appMutations'
 import { asText } from '../../utils/sanitizers'
 
-function controllerError(app, controllerId) {
+function actionError(app, actionId) {
   try {
-    const ctrl = app.controller(controllerId)
-    if (!ctrl || typeof ctrl.lastError !== 'function') return ''
-    return asText(ctrl.lastError())
+    const action = app.action(actionId)
+    if (!action || typeof action.lastError !== 'function') return ''
+    return asText(action.lastError())
   } catch {
     return ''
   }
@@ -42,12 +43,12 @@ export class MapWorkspaceBehavior extends ComponentBehavior {
 
   async saveSpot(spot) {
     try {
-      const ok = await this.app.controller('spots').saveSpot(spot)
+      const ok = await this.app.action('spots').saveSpot(spot)
       if (!ok) {
         this.handleError({
           title: 'Save failed',
           message: 'Spot could not be persisted.',
-          details: controllerError(this.app, 'spots'),
+          details: actionError(this.app, 'spots'),
         })
         return false
       }
@@ -71,12 +72,12 @@ export class MapWorkspaceBehavior extends ComponentBehavior {
 
   async deleteSpot(spotId) {
     try {
-      const ok = await this.app.controller('spots').deleteSpot(spotId)
+      const ok = await this.app.action('spots').deleteSpot(spotId)
       if (!ok) {
         this.handleError({
           title: 'Delete failed',
           message: 'Spot could not be deleted.',
-          details: controllerError(this.app, 'spots'),
+          details: actionError(this.app, 'spots'),
         })
         return false
       }
@@ -100,12 +101,12 @@ export class MapWorkspaceBehavior extends ComponentBehavior {
 
   async toggleFavorite(spotId, isFavorite) {
     try {
-      const ok = await this.app.controller('social').toggleFavorite(spotId, isFavorite)
+      const ok = await this.app.action('social').toggleFavorite(spotId, isFavorite)
       if (!ok) {
         this.handleError({
           title: 'Favorite failed',
           message: 'Could not update favorite state.',
-          details: controllerError(this.app, 'social'),
+          details: actionError(this.app, 'social'),
         })
         return false
       }
@@ -128,12 +129,12 @@ export class MapWorkspaceBehavior extends ComponentBehavior {
 
   async shareSpot(spotId, message) {
     try {
-      const ok = await this.app.controller('social').share(spotId, message)
+      const ok = await this.app.action('social').share(spotId, message)
       if (!ok) {
         this.handleError({
           title: 'Share failed',
           message: 'Could not share spot.',
-          details: controllerError(this.app, 'social'),
+          details: actionError(this.app, 'social'),
         })
         return false
       }
@@ -156,7 +157,7 @@ export class MapWorkspaceBehavior extends ComponentBehavior {
 
   async reportContent(targetType, targetId, reason = 'other', details = '') {
     try {
-      const result = await this.app.controller('social').reportContent(
+      const result = await this.app.action('social').reportContent(
         targetType,
         targetId,
         reason,
@@ -166,7 +167,7 @@ export class MapWorkspaceBehavior extends ComponentBehavior {
         this.handleError({
           title: 'Report failed',
           message: 'Could not submit this report.',
-          details: controllerError(this.app, 'social'),
+          details: actionError(this.app, 'social'),
         })
         return false
       }
@@ -191,16 +192,16 @@ export class MapWorkspaceBehavior extends ComponentBehavior {
   }
 
   async searchUsers(query, limit = 20) {
-    return this.app.controller('users').searchUsers(query, limit)
+    return this.app.action('users').searchUsers(query, limit)
   }
 
   async loadFriendUsers() {
-    return this.app.controller('users').friendDirectory()
+    return this.app.action('users').friendDirectory()
   }
 
   async loadUserProfile(userId) {
     try {
-      return await this.app.controller('users').profile(userId)
+      return await this.app.action('users').profile(userId)
     } catch {
       return null
     }
@@ -212,7 +213,7 @@ export class MapWorkspaceBehavior extends ComponentBehavior {
 
   async listComments(spotId) {
     try {
-      return await this.app.controller('comments').listBySpot(spotId)
+      return await this.app.action('comments').listBySpot(spotId)
     } catch {
       return []
     }
@@ -220,12 +221,12 @@ export class MapWorkspaceBehavior extends ComponentBehavior {
 
   async createComment(spotId, message) {
     try {
-      const created = await this.app.controller('comments').create(spotId, message)
+      const created = await this.app.action('comments').create(spotId, message)
       if (!created) {
         this.handleError({
           title: 'Comment failed',
           message: 'Could not post your comment.',
-          details: controllerError(this.app, 'comments'),
+          details: actionError(this.app, 'comments'),
         })
       }
       return created
@@ -241,12 +242,12 @@ export class MapWorkspaceBehavior extends ComponentBehavior {
 
   async updateComment(commentId, message) {
     try {
-      const updated = await this.app.controller('comments').update(commentId, message)
+      const updated = await this.app.action('comments').update(commentId, message)
       if (!updated) {
         this.handleError({
           title: 'Comment update failed',
           message: 'Could not update this comment.',
-          details: controllerError(this.app, 'comments'),
+          details: actionError(this.app, 'comments'),
         })
       }
       return updated
@@ -262,12 +263,12 @@ export class MapWorkspaceBehavior extends ComponentBehavior {
 
   async deleteComment(commentId) {
     try {
-      const ok = await this.app.controller('comments').delete(commentId)
+      const ok = await this.app.action('comments').delete(commentId)
       if (!ok) {
         this.handleError({
           title: 'Comment delete failed',
           message: 'Could not delete this comment.',
-          details: controllerError(this.app, 'comments'),
+          details: actionError(this.app, 'comments'),
         })
       }
       return Boolean(ok)
@@ -288,7 +289,7 @@ export class MapWorkspaceBehavior extends ComponentBehavior {
   }
 
   createMeetupAtSpot(spot) {
-    this.app.state.map.meetupCreationSpot = spot && typeof spot === 'object' ? spot : null
+    setMeetupCreationSpot(this.app.state, spot)
     void this.navigate(routeToSocial())
   }
 }

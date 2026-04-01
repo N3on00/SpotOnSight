@@ -1,5 +1,6 @@
-import { controllerLastError, createModerationActions, runBooleanAction, runTask } from '../uiShared'
-import { loadMeetupInvitesSafe, loadMeetupsSafe, meetupsController } from './meetupsControllerAccess'
+import { actionLastError, createModerationActions, runBooleanAction, runTask } from '../uiShared'
+import { getMeetupsActions, loadMeetupInvitesSafe, loadMeetupsSafe } from './meetupsAccess'
+import { clearMeetupCreationSpot, setSocialMeetupState } from '../../state/appMutations'
 
 export function buildSocialMeetupsProps({ app }) {
   const moderation = createModerationActions(app)
@@ -12,12 +13,11 @@ export function buildSocialMeetupsProps({ app }) {
           loadMeetupsSafe(app, 'upcoming'),
           loadMeetupInvitesSafe(app),
         ])
-        app.state.social.meetups = Array.isArray(meetups) ? meetups : []
-        app.state.social.meetupInvites = Array.isArray(invites) ? invites : []
+        setSocialMeetupState(app.state, { meetups, meetupInvites: invites })
       },
       errorTitle: 'Meetups sync failed',
       errorMessage: 'Could not load meetups right now.',
-      errorDetails: () => controllerLastError(app, 'meetups'),
+      errorDetails: () => actionLastError(app, 'meetups'),
     })
   }
 
@@ -28,68 +28,68 @@ export function buildSocialMeetupsProps({ app }) {
     preselectedSpot: app.state.map.meetupCreationSpot,
     currentUserId: app.state.session.user?.id || '',
     busy: app.state.loading.socialMeetups || app.state.loading.socialMeetupMutate,
-    onLoadUserProfile: async (userId) => app.controller('users').profile(userId),
+    onLoadUserProfile: async (userId) => app.action('users').profile(userId),
     onReportMeetup: moderation.onReportMeetup,
     onReportComment: moderation.onReportMeetupComment,
     onRefresh: refreshMeetups,
     onCreateMeetup: async (payload) => {
-      const ctrl = meetupsController(app)
-      if (!ctrl) return null
+      const meetups = getMeetupsActions(app)
+      if (!meetups) return null
       let created = null
       await runTask(app, {
         loadingKey: 'socialMeetupMutate',
         task: async () => {
-          created = await ctrl.create(payload)
-          app.state.map.meetupCreationSpot = null
+          created = await meetups.create(payload)
+          clearMeetupCreationSpot(app.state)
           await refreshMeetups()
         },
         errorTitle: 'Meetup creation failed',
         errorMessage: 'Could not create meetup.',
-        errorDetails: () => controllerLastError(app, 'meetups'),
+        errorDetails: () => actionLastError(app, 'meetups'),
         successTitle: 'Meetup created',
         successMessage: 'Invites were sent to selected users.',
       })
       return created
     },
     onDeleteMeetup: async (meetupId) => {
-      const ctrl = meetupsController(app)
-      if (!ctrl) return
+      const meetups = getMeetupsActions(app)
+      if (!meetups) return
       await runBooleanAction(app, {
         loadingKey: 'socialMeetupMutate',
-        action: () => ctrl.remove(meetupId),
+        action: () => meetups.remove(meetupId),
         errorTitle: 'Meetup delete failed',
         errorMessage: 'Could not remove meetup.',
-        errorDetails: () => controllerLastError(app, 'meetups'),
+        errorDetails: () => actionLastError(app, 'meetups'),
         successTitle: 'Meetup removed',
         successMessage: 'The meetup has been deleted.',
         onSuccess: refreshMeetups,
       })
     },
     onRespond: async (meetupId, status, comment) => {
-      const ctrl = meetupsController(app)
-      if (!ctrl) return
+      const meetups = getMeetupsActions(app)
+      if (!meetups) return
       await runTask(app, {
         loadingKey: 'socialMeetupMutate',
         task: async () => {
-          await ctrl.respond(meetupId, status, comment)
+          await meetups.respond(meetupId, status, comment)
           await refreshMeetups()
         },
         errorTitle: 'Response failed',
         errorMessage: 'Could not send meetup response.',
-        errorDetails: () => controllerLastError(app, 'meetups'),
+        errorDetails: () => actionLastError(app, 'meetups'),
         successTitle: status === 'accepted' ? 'Accepted' : 'Declined',
         successMessage: 'Your RSVP was saved.',
       })
     },
     onLoadComments: async (meetupId) => {
-      const ctrl = meetupsController(app)
-      if (!ctrl) return []
-      return ctrl.listComments(meetupId)
+      const meetups = getMeetupsActions(app)
+      if (!meetups) return []
+      return meetups.listComments(meetupId)
     },
     onCreateComment: async (meetupId, message) => {
-      const ctrl = meetupsController(app)
-      if (!ctrl) return null
-      return ctrl.createComment(meetupId, message)
+      const meetups = getMeetupsActions(app)
+      if (!meetups) return null
+      return meetups.createComment(meetupId, message)
     },
   }
 }

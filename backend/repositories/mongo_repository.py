@@ -83,6 +83,9 @@ class MongoRepository:
         oid = self._to_object_id(entity_id)
         return self.collection.delete_one({"_id": oid})
 
+    def delete_one_by_query(self, query: dict[str, Any]):
+        return self.collection.delete_one(query)
+
     def find_one(self, query: dict[str, Any], projection: dict[str, int] | None = None):
         return self.collection.find_one(query, projection)
 
@@ -92,6 +95,30 @@ class MongoRepository:
             cursor = cursor.limit(int(limit))
         return list(cursor)
 
+    def find_many_sorted(
+        self,
+        query: dict[str, Any],
+        *,
+        sort_field: str,
+        sort_direction: int,
+        projection: dict[str, int] | None = None,
+        limit: int = 0,
+    ):
+        cursor = self.collection.find(query, projection).sort(sort_field, sort_direction)
+        if limit and limit > 0:
+            cursor = cursor.limit(int(limit))
+        return list(cursor)
+
+    def find_all_sorted(
+        self,
+        *,
+        sort_field: str,
+        sort_direction: int,
+        projection: dict[str, int] | None = None,
+        limit: int = 0,
+    ):
+        return self.find_many_sorted({}, sort_field=sort_field, sort_direction=sort_direction, projection=projection, limit=limit)
+
     def insert_one(self, document: dict[str, Any]) -> str:
         result = self.collection.insert_one(document)
         return str(result.inserted_id)
@@ -99,8 +126,14 @@ class MongoRepository:
     def update_fields(self, query: dict[str, Any], fields: dict[str, Any], upsert: bool = False):
         return self.collection.update_one(query, {"$set": fields}, upsert=upsert)
 
+    def set_on_insert(self, query: dict[str, Any], fields: dict[str, Any]):
+        return self.collection.update_one(query, {"$setOnInsert": fields}, upsert=True)
+
     def delete_many(self, query: dict[str, Any]):
         return self.collection.delete_many(query)
+
+    def create_index(self, keys, **kwargs):
+        return self.collection.create_index(keys, **kwargs)
 
     def count_documents(self, query: dict[str, Any], limit: int = 0) -> int:
         if limit and limit > 0:

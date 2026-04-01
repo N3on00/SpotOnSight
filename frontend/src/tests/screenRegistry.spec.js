@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { registerComponentDecorators } from '../bootstrap/componentDecoratorRegistrations'
+import { createUiRegistryBuilder } from '../core/uiRegistryBuilder'
 import { ScreenErrorHandler, registerScreenErrorHandler } from '../core/errorHandlerRegistry'
-import { getAction, getComponents } from '../core/registry'
-import { createScreenModule, getScreenLifecycle } from '../core/screenRegistry'
 import { UI_SLOTS } from '../core/uiElements'
 
 const DummyWidget = {
@@ -27,7 +26,8 @@ describe('Screen registry generic module API', () => {
       handlerClass: TestScreenRegistryHandler,
     })
 
-    const module = createScreenModule(screen)
+    const uiRegistry = createUiRegistryBuilder()
+    const module = uiRegistry.createScreenModule(screen)
     const actionHandler = () => true
 
     module
@@ -52,10 +52,10 @@ describe('Screen registry generic module API', () => {
         errorMessage: 'Could not initialize screen.',
       })
 
-    const action = getAction(actionId)
-    const headerWidgets = getComponents(screen, UI_SLOTS.HEADER)
-    const mainWidgets = getComponents(screen, UI_SLOTS.MAIN)
-    const lifecycle = getScreenLifecycle(screen)
+    const action = uiRegistry.getAction(actionId)
+    const headerWidgets = uiRegistry.getComponents(screen, UI_SLOTS.HEADER)
+    const mainWidgets = uiRegistry.getComponents(screen, UI_SLOTS.MAIN)
+    const lifecycle = uiRegistry.getScreenLifecycle(screen)
 
     expect(action).toBe(actionHandler)
     expect(headerWidgets).toHaveLength(1)

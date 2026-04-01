@@ -36,26 +36,11 @@ export class MeetupNotificationsService extends BaseService {
   }
 
   connect(onNotification) {
-    // TODO: Implement SSE connection for real-time meetup notifications
-    // This method will be called when the user wants to connect to the SSE stream
-    // Usage:
-    //   const eventSource = new EventSource('/social/notifications/stream', {
-    //     withCredentials: true,
-    //     headers: { Authorization: `Bearer ${token}` }
-    //   })
-    //   eventSource.onmessage = (event) => {
-    //     const data = JSON.parse(event.data)
-    //     onNotification(normalizeNotification(data))
-    //   }
-    //   eventSource.onerror = () => {
-    //     // Handle reconnection logic
-    //   }
-    console.warn('MeetupNotificationsService.connect() - SSE not yet implemented')
+    void onNotification
+    console.warn('MeetupNotificationsService.connect() is currently a no-op')
   }
 
   disconnect() {
-    // TODO: Implement disconnect for SSE connection
-    // This method should close the EventSource connection when called
-    console.warn('MeetupNotificationsService.disconnect() - SSE not yet implemented')
+    console.warn('MeetupNotificationsService.disconnect() is currently a no-op')
   }
 }

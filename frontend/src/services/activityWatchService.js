@@ -1,21 +1,5 @@
-import {
-  createSubscriptionSnapshot,
-  diffSubscriptionSnapshot,
-  normalizeFilterSubscription,
-  snapshotsEqual,
-  subscriptionMatchesSpot,
-} from '../models/spotSubscriptions'
-import { NOTIFICATION_CATEGORIES } from './notificationService'
-
-function userIdOf(entry) {
-  return String(entry?.id || entry?.follower?.id || '').trim()
-}
-
-function requestIdOf(entry) {
-  const followerId = String(entry?.follower?.id || '').trim()
-  const created = String(entry?.created_at || '').trim()
-  return `${followerId}|${created}`
-}
+import { syncSocialActivity } from './activityWatch/socialActivitySync'
+import { syncFilterSubscriptions } from './activityWatch/subscriptionSync'
 
 export class ActivityWatchService {
   constructor(ctx) {
@@ -50,143 +34,15 @@ export class ActivityWatchService {
 
     this._busy = true
     try {
-      const spotsCtrl = app.controller('spots')
       const notifyService = app.service('notify')
 
       try {
-        const social = app.controller('social')
-        const [followers, incomingRequests] = await Promise.all([
-          social.followersOf(meId),
-          social.incomingRequests(),
-        ])
-
-        const followerList = Array.isArray(followers) ? followers : []
-        const requestList = Array.isArray(incomingRequests) ? incomingRequests : []
-
-        app.state.social.followers = followerList
-        app.state.social.followersCount = followerList.length
-        app.state.social.incomingRequests = requestList
-
-        const nextFollowerIds = new Set(followerList.map((entry) => userIdOf(entry)).filter(Boolean))
-        const nextRequestIds = new Set(requestList.map((entry) => requestIdOf(entry)).filter(Boolean))
-
-        if (notify && this._seeded) {
-          for (const follower of followerList) {
-            const fid = userIdOf(follower)
-            if (!fid || this._followerIds.has(fid)) continue
-
-            const who = String(follower.display_name || follower.username || 'A user')
-            notifyService.push({
-              category: NOTIFICATION_CATEGORIES.SOCIAL,
-              level: 'info',
-              title: 'New follower',
-              message: `${who} started following you.`,
-            })
-          }
-
-          for (const request of requestList) {
-            const rid = requestIdOf(request)
-            if (!rid || this._requestIds.has(rid)) continue
-
-            const who = String(request?.follower?.display_name || request?.follower?.username || 'A user')
-            notifyService.push({
-              category: NOTIFICATION_CATEGORIES.SOCIAL,
-              level: 'info',
-              title: 'Follow request',
-              message: `${who} requested to follow you.`,
-            })
-          }
-        }
-
-        this._followerIds = nextFollowerIds
-        this._requestIds = nextRequestIds
-
-        const moderationNotifications = await social.moderationNotifications()
-        const moderationList = Array.isArray(moderationNotifications) ? moderationNotifications : []
-        app.state.social.moderationNotifications = moderationList
-        const nextModerationIds = new Set(
-          moderationList
-            .map((entry) => String(entry?.id || '').trim())
-            .filter(Boolean),
-        )
-
-        if (notify && this._seeded) {
-          for (const entry of moderationList) {
-            const nid = String(entry?.id || '').trim()
-            if (!nid || this._moderationNotificationIds.has(nid)) continue
-            notifyService.push({
-              level: 'warning',
-              title: String(entry?.title || 'Moderation notice'),
-              message: String(entry?.message || 'Your content was reviewed by an admin.'),
-              details: String(entry?.details || ''),
-              sticky: true,
-            })
-          }
-        }
-
-        this._moderationNotificationIds = nextModerationIds
+        await syncSocialActivity(this, app, { notify, meId, notifyService })
       } catch {
         // Social activity polling is optional for subscription checks.
       }
 
-      const rawSubs = Array.isArray(app.state.map?.filterSubscriptions)
-        ? app.state.map.filterSubscriptions
-        : []
-      const subscriptions = rawSubs
-        .map((entry) => normalizeFilterSubscription(entry))
-        .filter(Boolean)
-        .map((entry) => {
-          const ownerUserId = String(entry.ownerUserId || '').trim() || meId
-          return {
-            ...entry,
-            ownerUserId,
-          }
-        })
-        .filter((entry) => String(entry?.ownerUserId || '').trim() === meId)
-        .filter(Boolean)
-
-      if (subscriptions.length) {
-        await spotsCtrl.reload()
-        const allSpots = Array.isArray(app.state.spots) ? app.state.spots : []
-        const favoritesSet = new Set((app.state.favorites || []).map((id) => String(id)))
-
-        const nextSubscriptions = []
-        let subscriptionsUpdated = subscriptions.length !== rawSubs.length
-
-        for (const sub of subscriptions) {
-          const matchedSpots = allSpots.filter((spot) => subscriptionMatchesSpot(sub, spot, favoritesSet))
-          const nextSnapshot = createSubscriptionSnapshot(matchedSpots)
-          const previousSnapshot = sub.snapshot || {}
-
-          const { addedIds, changedIds } = diffSubscriptionSnapshot(previousSnapshot, nextSnapshot)
-
-          if (notify && (addedIds.length || changedIds.length)) {
-            const changeSummary = []
-            if (addedIds.length) changeSummary.push(`${addedIds.length} new`)
-            if (changedIds.length) changeSummary.push(`${changedIds.length} changed`)
-
-            notifyService.push({
-              category: NOTIFICATION_CATEGORIES.MAP,
-              level: 'success',
-              title: 'Subscription update',
-              message: `${changeSummary.join(', ')} spot(s): ${sub.label}`,
-            })
-          }
-
-          if (!snapshotsEqual(previousSnapshot, nextSnapshot)) {
-            subscriptionsUpdated = true
-          }
-
-          nextSubscriptions.push({
-            ...sub,
-            snapshot: nextSnapshot,
-          })
-        }
-
-        if (subscriptionsUpdated) {
-          app.state.map.filterSubscriptions = nextSubscriptions
-        }
-      }
+      await syncFilterSubscriptions(app, { notify, meId, notifyService })
 
       this._seeded = true
     } catch {

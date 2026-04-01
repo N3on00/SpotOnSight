@@ -8,7 +8,6 @@ from fastapi import Depends, HTTPException, status
 
 from services.auth.current_user import get_current_user
 from models.schemas import AuthUserRecord
-from repositories.auth_repository import get_auth_user_repository
 from services.auth.password_service import password_service
 
 
@@ -31,8 +30,7 @@ def get_current_admin_user(current_user: dict = Depends(get_current_user)) -> di
     return current_user
 
 
-def ensure_admin_user() -> dict | None:
-    repository = get_auth_user_repository()
+def ensure_admin_user(repository) -> dict | None:
     existing = repository.find_one({"username": ADMIN_DEFAULT_USERNAME})
 
     if existing:

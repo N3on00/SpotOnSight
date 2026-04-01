@@ -149,9 +149,9 @@ async function sendToSupport(n) {
   const payload = n?.meta?.supportPayload
   if (!payload) return
   try {
-    const ticket = await app.controller('support').submitDebugTicket(payload)
+    const ticket = await app.action('support').submitDebugTicket(payload)
     if (!ticket) {
-      throw new Error(app.controller('support').lastError() || 'Could not submit debug report')
+      throw new Error(app.action('support').lastError() || 'Could not submit debug report')
     }
     app.service('notify').push({
       category: NOTIFICATION_CATEGORIES.SYSTEM,

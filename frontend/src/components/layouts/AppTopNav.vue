@@ -209,7 +209,7 @@ function isActive(entry) {
 
 function logout() {
   closePanels()
-  app.controller('auth').logout()
+  app.action('auth').logout()
   app.service('notify').push({
     category: NOTIFICATION_CATEGORIES.ACCOUNT,
     level: 'info',

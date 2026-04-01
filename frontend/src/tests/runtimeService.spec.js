@@ -47,10 +47,10 @@ function createContext({ authenticated = true } = {}) {
       isAuthenticated: () => authenticated,
     },
     service: null,
-    controller: (id) => {
+    action: (id) => {
       if (id === 'social') return social
       if (id === 'spots') return spots
-      throw new Error(`Unknown controller: ${id}`)
+      throw new Error(`Unknown action: ${id}`)
     },
   }
 

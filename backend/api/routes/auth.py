@@ -1,33 +1,129 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+from datetime import UTC, datetime
+from typing import Any
 
-from api.crud import router_create_auth_sessions
+from bson import ObjectId
+from fastapi import APIRouter, Body, HTTPException, status
+from pydantic import ValidationError
+from pymongo.errors import DuplicateKeyError
 
-from repositories.auth_repository import get_auth_user_repository
+from core.text import normalize_email, normalize_login, normalize_search_text, normalize_text, normalize_username
 from services.auth.password_service import password_service
 from services.auth.token_service import token_service
 
 
-_AUTH_ROUTER: APIRouter | None = None
+def _as_text(value: Any) -> str:
+    return normalize_text(value)
 
 
-def get_auth_router() -> APIRouter:
-    global _AUTH_ROUTER
-    if _AUTH_ROUTER is not None:
-        return _AUTH_ROUTER
+def _to_user_public(user_public_model, user_doc: dict[str, Any]):
+    payload = {
+        "id": _as_text(user_doc.get("_id")),
+        "username": _as_text(user_doc.get("username")),
+        "email": _as_text(user_doc.get("email")),
+        "display_name": _as_text(user_doc.get("display_name") or user_doc.get("username")),
+        "bio": _as_text(user_doc.get("bio")),
+        "avatar_image": _as_text(user_doc.get("avatar_image")),
+        "social_accounts": user_doc.get("social_accounts") if isinstance(user_doc.get("social_accounts"), dict) else {},
+        "follow_requires_approval": bool(user_doc.get("follow_requires_approval", False)),
+        "is_admin": bool(user_doc.get("is_admin", False)),
+        "created_at": user_doc.get("created_at") or datetime.now(UTC),
+    }
+    return user_public_model.model_validate(payload)
 
+
+def _to_auth_response(token_response_model, user_public_model, user_doc: dict[str, Any]):
+    user_id = _as_text(user_doc.get("_id"))
+    username = _as_text(user_doc.get("username"))
+    access_token = token_service.issue_access_token(user_id=user_id, username=username)
+    payload = {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": _to_user_public(user_public_model, user_doc),
+    }
+    return token_response_model.model_validate(payload)
+
+
+def _find_user_by_login(repository, username_or_email: str) -> dict[str, Any] | None:
+    login = normalize_login(username_or_email)
+    if not login:
+        return None
+    search_key = normalize_search_text(login)
+    return repository.find_one(
+        {
+            "$or": [
+                {"username": login},
+                {"username_key": search_key},
+                {"email": login},
+                {"email_key": normalize_email(login)},
+            ]
+        }
+    )
+
+
+def _build_user_document(req, password_hash: str) -> dict[str, Any]:
+    username = normalize_username(getattr(req, "username", ""))
+    email = normalize_email(getattr(req, "email", ""))
+    display_name = _as_text(getattr(req, "display_name", "")) or username
+    return {
+        "username": username,
+        "username_key": normalize_search_text(username),
+        "username_search": normalize_search_text(username),
+        "email": email,
+        "email_key": normalize_email(email),
+        "password_hash": _as_text(password_hash),
+        "display_name": display_name,
+        "display_name_search": normalize_search_text(display_name),
+        "bio": "",
+        "avatar_image": "",
+        "social_accounts": {},
+        "follow_requires_approval": False,
+        "created_at": datetime.now(UTC),
+    }
+
+
+def build_auth_router(repository) -> APIRouter:
     from models.schemas import AuthTokenResponse, LoginRequest, RegisterRequest, UserPublic
 
-    _AUTH_ROUTER = router_create_auth_sessions(
-        repository=get_auth_user_repository(),
-        register_model=RegisterRequest,
-        login_model=LoginRequest,
-        user_public_model=UserPublic,
-        token_response_model=AuthTokenResponse,
-        token_extension=token_service,
-        password_extension=password_service,
-        prefix="/auth",
-        tags=["Auth"],
-    )
-    return _AUTH_ROUTER
+    router = APIRouter(prefix="/auth", tags=["Auth"])
+
+    @router.post("/register", response_model=AuthTokenResponse)
+    async def register(payload: dict[str, Any] = Body(...)):
+        try:
+            req = RegisterRequest.model_validate(payload)
+        except ValidationError as exc:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+
+        password_hash = password_service.hash_password(req.password)
+        user_doc = _build_user_document(req, password_hash=password_hash)
+        try:
+            inserted_id = repository.insert_one(user_doc)
+        except DuplicateKeyError as exc:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username or email already exists") from exc
+
+        created = repository.find_one({"_id": ObjectId(str(inserted_id))})
+        if not created:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="User creation failed")
+        return _to_auth_response(AuthTokenResponse, UserPublic, created)
+
+    @router.post("/login", response_model=AuthTokenResponse)
+    async def login(payload: dict[str, Any] = Body(...)):
+        try:
+            req = LoginRequest.model_validate(payload)
+        except ValidationError as exc:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+
+        user_doc = _find_user_by_login(repository, req.username_or_email)
+        if not user_doc:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username/email or password")
+        if normalize_login(user_doc.get("account_status")) == "banned":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This account has been banned")
+
+        password_hash = _as_text(user_doc.get("password_hash"))
+        if not password_service.verify_password(req.password, password_hash):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username/email or password")
+
+        return _to_auth_response(AuthTokenResponse, UserPublic, user_doc)
+
+    return router

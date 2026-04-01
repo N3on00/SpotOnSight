@@ -6,6 +6,6 @@ from .indexes import ensure_indexes
 
 
 @asynccontextmanager
-async def social_lifespan(_app):
-    ensure_indexes()
+async def social_lifespan(app):
+    ensure_indexes(app.state.social_repositories)
     yield

@@ -28,7 +28,6 @@ export class SocialService extends ApiStateService {
 
   async loadFavorites() {
     if (!this.token()) {
-      this.state.favorites = []
       this.clearError()
       return []
     }
@@ -39,12 +38,11 @@ export class SocialService extends ApiStateService {
           .map((x) => asText(x?.spot_id) || extractSpotId(x))
           .filter(Boolean)
         : []
-      this.state.favorites = uniqueTextList(spotIds)
+      const favorites = uniqueTextList(spotIds)
       this.clearError()
-      return this.state.favorites
+      return favorites
     } catch (error) {
       this.captureError(error, 'Could not load favorites')
-      this.state.favorites = []
       return []
     }
   }
@@ -55,9 +53,6 @@ export class SocialService extends ApiStateService {
         params: { spotId },
         body: {},
       })
-      if (!this.state.favorites.includes(spotId)) {
-        this.state.favorites.push(spotId)
-      }
       this.clearError()
       return true
     } catch (error) {
@@ -71,7 +66,6 @@ export class SocialService extends ApiStateService {
       await this.api.request(API_ENDPOINTS.SOCIAL_FAVORITES_DELETE, {
         params: { spotId },
       })
-      this.state.favorites = this.state.favorites.filter((id) => id !== spotId)
       this.clearError()
       return true
     } catch (error) {

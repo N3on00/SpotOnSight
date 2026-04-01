@@ -13,6 +13,7 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 import core.social.actions as social_actions_module
+import core.social.moderation_actions as moderation_actions_module
 from core.social.actions import SocialActions
 from models.schemas import ModerationReportReviewRequest
 
@@ -84,6 +85,15 @@ class FakeRepo:
         matches = [doc for doc in self.docs if _matches(doc, query)]
         return matches[:limit or None]
 
+    def find_many_sorted(self, query: dict, *, sort_field: str, sort_direction: int, projection: dict | None = None, limit: int = 0):
+        reverse = int(sort_direction) < 0
+        matches = [doc for doc in self.docs if _matches(doc, query)]
+        matches.sort(key=lambda item: item.get(sort_field) or datetime.min.replace(tzinfo=UTC), reverse=reverse)
+        return matches[:limit or None]
+
+    def find_all_sorted(self, *, sort_field: str, sort_direction: int, projection: dict | None = None, limit: int = 0):
+        return self.find_many_sorted({}, sort_field=sort_field, sort_direction=sort_direction, projection=projection, limit=limit)
+
     def insert_one(self, document: dict):
         if "_id" not in document:
             document["_id"] = ObjectId()
@@ -98,8 +108,20 @@ class FakeRepo:
         if upsert:
             self.docs.append({**query, **fields})
 
+    def set_on_insert(self, query: dict, fields: dict):
+        existing = self.find_one(query)
+        if existing:
+            return
+        self.docs.append({**query, **fields})
+
+    def delete_one_by_query(self, query: dict):
+        return self.collection.delete_one(query)
+
     def delete_many(self, query: dict):
         self.docs[:] = [doc for doc in self.docs if not _matches(doc, query)]
+
+    def create_index(self, keys, **kwargs):
+        return None
 
     def count_documents(self, query: dict, limit: int = 0):
         return self.collection.count_documents(query, limit=limit)
@@ -141,7 +163,8 @@ def _matches(doc: dict, query: dict) -> bool:
 
 @pytest.fixture(autouse=True)
 def _disable_index_initialization(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setattr(social_actions_module, "ensure_indexes", lambda: None)
+    monkeypatch.setattr(social_actions_module, "ensure_indexes", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(moderation_actions_module, "ensure_indexes", lambda *_args, **_kwargs: None)
 
 
 def test_admin_can_see_hidden_spots_but_regular_users_cannot():

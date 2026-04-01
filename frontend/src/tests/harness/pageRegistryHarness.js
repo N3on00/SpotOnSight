@@ -1,13 +1,12 @@
 import { vi } from 'vitest'
 
+import { createFrontendActorRegistry } from '../../actors'
 import { registerComponentDecorators } from '../../bootstrap/componentDecoratorRegistrations'
 import { registerErrorHandlers } from '../../bootstrap/errorHandlerRegistrations'
-import { registerUi } from '../../bootstrap/uiRegistrations'
-import { getAction, getComponents } from '../../core/registry'
-import { getScreenLifecycle } from '../../core/screenRegistry'
 import { UI_ACTIONS, UI_COMPONENT_IDS, UI_SCREENS, UI_SLOTS } from '../../core/uiElements'
 
 let initialized = false
+let actorRegistry = null
 
 function isPlainObject(value) {
   return Object.prototype.toString.call(value) === '[object Object]'
@@ -276,7 +275,47 @@ export function initializeRegistryTestHarness() {
   initialized = true
   registerComponentDecorators()
   registerErrorHandlers()
-  registerUi()
+  actorRegistry = createFrontendActorRegistry({
+    beginBackendRequest: () => {},
+    endBackendRequest: () => {},
+  })
+  actorRegistry.registerUi()
+}
+
+function createDefaultActions(state) {
+  const actions = createDefaultControllers(state)
+  actions.dashboard = {
+    reloadCoreData: vi.fn(async () => {
+      await actions.spots.reload()
+      await actions.social.reloadFavorites()
+      return true
+    }),
+    reloadDashboardData: vi.fn(async () => {
+      await actions.dashboard.reloadCoreData()
+      const uid = state.session.user?.id
+      if (!uid) return true
+      await actions.social.followersOf(uid)
+      await actions.social.followingOf(uid)
+      await actions.social.incomingRequests()
+      await actions.social.blockedUsers()
+      return true
+    }),
+  }
+  actions.profile = {
+    loadProfileState: vi.fn(async (targetId) => {
+      const userId = String(targetId || state.session.user?.id || '').trim()
+      if (!userId) return true
+      const meId = String(state.session.user?.id || '').trim()
+      await actions.users.profile(userId)
+      await actions.spots.byUser(userId)
+      await actions.spots.favoritesOfUser(userId)
+      if (meId) {
+        await actions.social.followingOf(meId)
+      }
+      return true
+    }),
+  }
+  return actions
 }
 
 export function createMockRouter({
@@ -310,22 +349,22 @@ export function createMockRouter({
 
 export function createMockApp({
   state: stateOverride = {},
-  controllers: controllerOverride = {},
+  actions: actionOverride = {},
   services: serviceOverride = {},
 } = {}) {
   initializeRegistryTestHarness()
 
   const state = mergeRecords(cloneState(createDefaultState()), stateOverride)
-  const controllers = mergeRecords(createDefaultControllers(state), controllerOverride)
+  const actions = mergeRecords(createDefaultActions(state), actionOverride)
   const services = mergeRecords(createDefaultServices(), serviceOverride)
 
   const app = {
     state,
-    controller(id) {
-      if (!(id in controllers)) {
-        throw new Error(`Unknown controller: ${id}`)
+    action(id) {
+      if (!(id in actions)) {
+        throw new Error(`Unknown action: ${id}`)
       }
-      return controllers[id]
+      return actions[id]
     },
     service(id) {
       if (!(id in services)) {
@@ -337,7 +376,7 @@ export function createMockApp({
 
   app.ui = {
     runAction: vi.fn(async (actionId, payload = {}) => {
-      const handler = getAction(actionId)
+      const handler = actorRegistry?.getAction(actionId)
       if (!handler) {
         throw new Error(`Unknown action_id: ${actionId}`)
       }
@@ -349,7 +388,7 @@ export function createMockApp({
   return {
     app,
     state,
-    controllers,
+    actions,
     services,
   }
 }
@@ -357,7 +396,7 @@ export function createMockApp({
 export class RegisteredPageHarness {
   static screen = ''
 
-  constructor({ screen = '', app, state, controllers, services, router, route } = {}) {
+  constructor({ screen = '', app, state, actions, services, router, route } = {}) {
     initializeRegistryTestHarness()
 
     const targetScreen = String(screen || this.constructor.screen || '').trim()
@@ -369,10 +408,10 @@ export class RegisteredPageHarness {
       ? {
           app,
           state: app.state,
-          controllers: controllers || null,
+          actions: actions || null,
           services: services || null,
         }
-      : createMockApp({ state, controllers, services })
+      : createMockApp({ state, actions, services })
 
     const routeBundle = createMockRouter({
       path: `/${targetScreen}`,
@@ -382,7 +421,7 @@ export class RegisteredPageHarness {
     this.screen = targetScreen
     this.app = appBundle.app
     this.state = appBundle.state
-    this.controllers = appBundle.controllers
+    this.actions = appBundle.actions
     this.services = appBundle.services
     this.router = router || routeBundle.router
     this.route = route || routeBundle.route
@@ -393,11 +432,11 @@ export class RegisteredPageHarness {
   }
 
   lifecycle() {
-    return getScreenLifecycle(this.screen)
+    return actorRegistry?.getScreenLifecycle(this.screen) || null
   }
 
   componentSpecs(slot) {
-    return getComponents(this.screen, slot)
+    return actorRegistry?.getComponents(this.screen, slot) || []
   }
 
   slotComponentIds(slot) {

@@ -52,9 +52,9 @@ describe('Auth failure and unauthorized handling', () => {
     }
 
     const service = new TestAuthService(api, state)
-    const ok = await service.login('alice', 'wrong')
+    const session = await service.login('alice', 'wrong')
 
-    expect(ok).toBe(false)
+    expect(session).toBe(false)
     expect(api.request).toHaveBeenCalledWith(API_ENDPOINTS.AUTH_LOGIN, {
       body: {
         username_or_email: 'alice',
@@ -176,7 +176,7 @@ describe('Session persistence and offline resilience', () => {
     const spots = await service.list()
 
     expect(spots).toEqual([])
-    expect(state.spots).toEqual([])
+    expect(state.spots).toEqual([{ id: 'existing-spot' }])
     expect(String(service.lastError() || '').trim().length).toBeGreaterThan(0)
   })
 })

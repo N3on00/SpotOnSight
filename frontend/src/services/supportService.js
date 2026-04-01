@@ -74,12 +74,10 @@ export class SupportService extends ApiStateService {
     try {
       const data = await this.api.request(API_ENDPOINTS.SUPPORT_ADMIN_TICKETS_LIST)
       const tickets = Array.isArray(data) ? data.map((item) => normalizeCreatedTicket(item)) : []
-      this.state.admin.supportTickets = tickets
       this.clearError()
       return tickets
     } catch (error) {
       this.captureError(error, 'Could not load support tickets')
-      this.state.admin.supportTickets = []
       return []
     }
   }

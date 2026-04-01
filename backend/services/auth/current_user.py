@@ -3,25 +3,31 @@ from __future__ import annotations
 from typing import Any
 
 from bson import ObjectId
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
 
-from repositories.auth_repository import get_auth_user_repository
 from .token_service import token_service
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
-def _find_user_by_id(user_id: str) -> dict[str, Any] | None:
+def get_auth_repository(request: Request):
+    return request.app.state.auth_repository
+
+
+def _find_user_by_id(repository, user_id: str) -> dict[str, Any] | None:
     text = str(user_id or "").strip()
     if not ObjectId.is_valid(text):
         return None
-    return get_auth_user_repository().find_one({"_id": ObjectId(text)})
+    return repository.find_one({"_id": ObjectId(text)})
 
 
-def get_current_user(token: str = Depends(oauth2_scheme)) -> dict[str, Any]:
+def get_current_user(
+    request: Request,
+    token: str = Depends(oauth2_scheme),
+) -> dict[str, Any]:
     credentials_error = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid or expired token",
@@ -37,7 +43,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> dict[str, Any]:
     if not user_id:
         raise credentials_error
 
-    user_doc = _find_user_by_id(user_id)
+    user_doc = _find_user_by_id(get_auth_repository(request), user_id)
     if not user_doc:
         raise credentials_error
     if str(user_doc.get("account_status") or "active").strip().lower() == "banned":

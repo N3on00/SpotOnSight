@@ -174,7 +174,7 @@ class SpotWorkflowExecutor:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     def _load_visible_candidates(self, _context: ExecutionContext, _config: dict[str, Any]) -> list[dict[str, Any]]:
-        return list(self.actions.repos.spots.collection.find({}).sort("created_at", -1).limit(1500))
+        return self.actions.repos.spots.find_all_sorted(sort_field="created_at", sort_direction=-1, limit=1500)
 
     def _load_target_spot(self, context: ExecutionContext, _config: dict[str, Any]) -> dict[str, Any]:
         return self.actions.spot_or_404(as_text(context.get("spot_id")))
@@ -186,7 +186,7 @@ class SpotWorkflowExecutor:
     def _load_user_candidates(self, context: ExecutionContext, _config: dict[str, Any]) -> list[dict[str, Any]]:
         target_user = context.get("target_user") or {}
         target_id = as_text(target_user.get("id"))
-        return list(self.actions.repos.spots.collection.find({"owner_id": target_id}).sort("created_at", -1).limit(1200))
+        return self.actions.repos.spots.find_many_sorted({"owner_id": target_id}, sort_field="created_at", sort_direction=-1, limit=1200)
 
     def _build_create_document(self, context: ExecutionContext, _config: dict[str, Any]) -> dict[str, Any]:
         owner_id = self.actions.me_id(context.principal)

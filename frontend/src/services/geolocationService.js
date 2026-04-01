@@ -1,3 +1,5 @@
+import { webStorage } from './webStorage'
+
 const GEOLOCATION_STORAGE_KEY = 'geolocation_prefs'
 const GEOLOCATION_TIMEOUT_MS = 10000
 const EUROPE_FALLBACK_ZOOM = 5
@@ -17,7 +19,7 @@ const DEFAULT_NEAR_RADIUS_KM = 25
 
 function loadStoredPrefs() {
   try {
-    const raw = localStorage.getItem(GEOLOCATION_STORAGE_KEY)
+    const raw = webStorage.getItem(GEOLOCATION_STORAGE_KEY)
     return raw ? JSON.parse(raw) : null
   } catch {
     return null
@@ -26,7 +28,7 @@ function loadStoredPrefs() {
 
 function saveStoredPrefs(prefs) {
   try {
-    localStorage.setItem(GEOLOCATION_STORAGE_KEY, JSON.stringify(prefs))
+    webStorage.setItem(GEOLOCATION_STORAGE_KEY, JSON.stringify(prefs))
   } catch {
     // Ignore storage errors
   }

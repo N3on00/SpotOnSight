@@ -1,8 +1,5 @@
 import uvicorn
 
-# Import schema modules so decorators run and routers get registered
-from models import schemas  # noqa: F401
-
 from core.application import Routing
 
 

@@ -21,7 +21,7 @@ onMounted(async () => {
   try {
     if (app.ui.isAuthenticated()) {
       await Promise.all([
-        app.controller('users').refreshProfile(),
+        app.action('users').refreshProfile(),
         app.service('dashboard').reloadCoreData(),
       ])
     }

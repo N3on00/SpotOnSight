@@ -11,11 +11,11 @@ SpotOnSight follows a modular product structure built around a Vue frontend, a F
 
 ## Backend Layers
 
-- `backend/api/`: FastAPI routes and generic CRUD route builders
-- `backend/services/`: business workflows and orchestration
+- `backend/api/`: explicit FastAPI route modules plus route manifests
+- `backend/services/`: auth and platform-facing service helpers
 - `backend/repositories/`: MongoDB repository adapters
-- `backend/models/`: Pydantic contracts
-- `backend/core/`: app startup, admin bootstrap, registry, and shared social helpers
+- `backend/models/`: Pydantic contracts and endpoint factories
+- `backend/core/`: app startup, social actions, workflow runtime, policies, and shared helpers
 
 ## Frontend Layers
 
@@ -24,22 +24,24 @@ SpotOnSight follows a modular product structure built around a Vue frontend, a F
 - `frontend/src/router/`: route definitions and navigation wiring
 - `frontend/src/stores/`: application state persistence and hydration
 - `frontend/src/services/`: API and platform-facing service layer
+- `frontend/src/actions/`: app actions that orchestrate flows and own state mutation
+- `frontend/src/actors/`: actor manifests that declare services, actions, UI bindings, and runtime bindings
 
 ## Cross-Cutting Rules
 
-- Routes/controllers stay thin and delegate decisions to services
-- Services own business rules and coordinate repository access
+- Route modules stay thin and delegate business decisions to action/workflow layers
+- Frontend actions own orchestration and state mutation; services return data or perform external IO
 - Repositories encapsulate MongoDB queries and indexes
 - Mobile wraps the web app instead of duplicating product logic
 
-## Target Runtime Direction
+## Runtime Direction
 
-SpotOnSight is moving toward a reusable actor model where business data decides orchestration.
+SpotOnSight now uses a generic-once, data-declared structure:
 
-- actors should be generic capability units, not feature-specific scripts
-- workflow definitions should declare which actors run and in what order
-- policies should hold business rules and permission checks
-- execution context should carry request, principal, entities, and emitted facts through the pipeline
+- frontend actor manifests declare services, actions, UI registration, and runtime bindings
+- backend route manifests declare the varying HTTP surface while the route builder stays generic
+- social domain behavior is split into focused action modules plus reusable workflow primitives
+- policies hold permission checks and business rules close to the domain helpers that use them
 
 Detailed UML and orchestration guidance live in `docs/architecture/actor-runtime.md`.
 

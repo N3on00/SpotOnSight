@@ -61,12 +61,13 @@ export class AuthService extends ApiStateService {
   _applySession(data) {
     if (!data || typeof data !== 'object' || !data.access_token || !data.user) {
       this.captureError('Invalid authentication response', 'Invalid authentication response')
-      return false
+      return null
     }
-    this.state.session.token = data.access_token
-    this.state.session.user = normalizeUser(data.user)
     this.clearError()
-    return true
+    return {
+      token: data.access_token,
+      user: normalizeUser(data.user),
+    }
   }
 
   async login(usernameOrEmail, password) {
@@ -120,8 +121,6 @@ export class AuthService extends ApiStateService {
   }
 
   logout() {
-    this.state.session.token = ''
-    this.state.session.user = null
     this.clearError()
   }
 }

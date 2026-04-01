@@ -1,5 +1,4 @@
 import { resolveScreenErrorHandler } from '../../core/errorHandlerRegistry'
-import { getScreenLifecycle } from '../../core/screenRegistry'
 import { beginLoading, endLoading } from './loading'
 import { notify } from './notify'
 import { resolve, resolveText, toDetails } from './text'
@@ -21,7 +20,7 @@ function resolveDefaultErrorHandlerId(app) {
   const screen = activeScreen(app)
   if (!screen) return 'screen.default'
 
-  const lifecycle = getScreenLifecycle(screen)
+  const lifecycle = app?.ui?.getScreenLifecycle(screen)
   return String(lifecycle?.errorHandlerId || 'screen.default').trim() || 'screen.default'
 }
 
@@ -115,11 +114,11 @@ export function observeAction(app, {
   }
 }
 
-export function controllerLastError(app, controllerId) {
+export function actionLastError(app, actionId) {
   try {
-    const ctrl = app.controller(controllerId)
-    if (!ctrl || typeof ctrl.lastError !== 'function') return ''
-    return toDetails(ctrl.lastError())
+    const action = app.action(actionId)
+    if (!action || typeof action.lastError !== 'function') return ''
+    return toDetails(action.lastError())
   } catch {
     return ''
   }

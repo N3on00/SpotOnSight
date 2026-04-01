@@ -1,3 +1,5 @@
+import { clearNotificationLog, pushNotification, removeNotification } from '../state/appMutations'
+
 let seq = 1
 
 export const NOTIFICATION_CATEGORIES = Object.freeze({
@@ -40,15 +42,7 @@ export class NotificationService {
       meta: meta && typeof meta === 'object' ? meta : null,
     }
 
-    if (!Array.isArray(this.state.notificationLog)) {
-      this.state.notificationLog = []
-    }
-    this.state.notificationLog.push(entry)
-    if (this.state.notificationLog.length > 200) {
-      this.state.notificationLog = this.state.notificationLog.slice(-200)
-    }
-
-    this.state.notifications.push(entry)
+    pushNotification(this.state, entry)
 
     if (!sticky) {
       const timeout = Number.isFinite(durationMs) ? Number(durationMs) : this._defaultDuration(level)
@@ -68,7 +62,7 @@ export class NotificationService {
   remove(id) {
     this._clearTimer(id)
     this._holdCounts.delete(id)
-    this.state.notifications = this.state.notifications.filter((n) => n.id !== id)
+    removeNotification(this.state, id)
   }
 
   hold(id) {
@@ -98,7 +92,7 @@ export class NotificationService {
   }
 
   clearLog() {
-    this.state.notificationLog = []
+    clearNotificationLog(this.state)
   }
 
   _hasNotification(id) {

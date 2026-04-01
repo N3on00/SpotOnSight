@@ -37,7 +37,7 @@ def visible_favorite_refs(r: SocialRepositories, rows: list[dict[str, Any]], vie
         lookup_ids.append(sid)
         if ObjectId.is_valid(sid):
             lookup_ids.append(ObjectId(sid))
-    spot_docs = list(r.spots.collection.find({"_id": {"$in": lookup_ids}}))
+    spot_docs = r.spots.find_many({"_id": {"$in": lookup_ids}})
     visible_ids = {serialize_id(doc.get("_id")) for doc in spot_docs if can_view_spot(r, viewer_user_id_value, doc)}
     out: list[FavoriteRef] = []
     for row in rows:

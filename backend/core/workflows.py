@@ -166,7 +166,7 @@ class PersistActor:
             value = repository.update_fields(query, fields, upsert=bool(step.config.get("upsert", False)))
         elif operation == "delete_one":
             query = context.get(step.config.get("query_key"), {})
-            value = repository.collection.delete_one(query)
+            value = repository.delete_one_by_query(query)
         elif operation == "delete_many":
             query = context.get(step.config.get("query_key"), {})
             value = repository.delete_many(query)

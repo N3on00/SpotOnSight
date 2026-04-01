@@ -20,12 +20,9 @@ from models.schemas import (
     SupportTicketRequest,
 )
 from repositories.mongo_repository import MongoRepository
-from repositories.auth_repository import get_auth_user_repository
-
-
 class SocialRepositories:
-    def __init__(self) -> None:
-        self.users = get_auth_user_repository()
+    def __init__(self, users_repository) -> None:
+        self.users = users_repository
         self.spots = MongoRepository("spots", SpotUpsertRequest, db_name=_spots_db_name())
         self.favorites = MongoRepository("favorites", FavoriteRef, db_name=_social_db_name())
         self.follows = MongoRepository("follows", FollowRef, db_name=_social_db_name())
@@ -42,20 +39,9 @@ class SocialRepositories:
         self.meetup_comments = MongoRepository("meetup_comments", MeetupComment, db_name=_social_db_name())
         self.meetup_notifications = MongoRepository("meetup_notifications", MeetupNotificationPublic, db_name=_social_db_name())
 
-
-_SOCIAL_REPOS: SocialRepositories | None = None
-
-
 def _social_db_name() -> str:
     return str(os.getenv("MONGO_AUTH_DB") or "SpotOnSightAuth").strip() or "SpotOnSightAuth"
 
 
 def _spots_db_name() -> str:
     return str(os.getenv("MONGO_SPOTS_DB") or "spot_on_sight").strip() or "spot_on_sight"
-
-
-def repos() -> SocialRepositories:
-    global _SOCIAL_REPOS
-    if _SOCIAL_REPOS is None:
-        _SOCIAL_REPOS = SocialRepositories()
-    return _SOCIAL_REPOS

@@ -73,10 +73,10 @@ describe('ActivityWatchService filter subscription notifications', () => {
       ui: {
         isAuthenticated: () => true,
       },
-      controller: (id) => {
+      action: (id) => {
         if (id === 'social') return socialController
         if (id === 'spots') return spotsController
-        throw new Error(`Unknown controller: ${id}`)
+        throw new Error(`Unknown action: ${id}`)
       },
       service: (id) => {
         if (id === 'notify') {
@@ -135,7 +135,7 @@ describe('ActivityWatchService filter subscription notifications', () => {
       ui: {
         isAuthenticated: () => true,
       },
-      controller: (id) => {
+      action: (id) => {
         if (id === 'social') {
           return {
             followersOf: vi.fn(async () => []),
@@ -163,7 +163,7 @@ describe('ActivityWatchService filter subscription notifications', () => {
             }),
           }
         }
-        throw new Error(`Unknown controller: ${id}`)
+        throw new Error(`Unknown action: ${id}`)
       },
       service: (id) => {
         if (id === 'notify') {
@@ -212,7 +212,7 @@ describe('ActivityWatchService filter subscription notifications', () => {
       ui: {
         isAuthenticated: () => true,
       },
-      controller: (id) => {
+      action: (id) => {
         if (id === 'social') {
           return {
             followersOf: vi.fn(async () => {
@@ -244,7 +244,7 @@ describe('ActivityWatchService filter subscription notifications', () => {
             }),
           }
         }
-        throw new Error(`Unknown controller: ${id}`)
+        throw new Error(`Unknown action: ${id}`)
       },
       service: (id) => {
         if (id === 'notify') {
@@ -295,7 +295,7 @@ describe('ActivityWatchService filter subscription notifications', () => {
       ui: {
         isAuthenticated: () => true,
       },
-      controller: (id) => {
+      action: (id) => {
         if (id === 'social') {
           return {
             followersOf: vi.fn(async () => []),
@@ -323,7 +323,7 @@ describe('ActivityWatchService filter subscription notifications', () => {
             }),
           }
         }
-        throw new Error(`Unknown controller: ${id}`)
+        throw new Error(`Unknown action: ${id}`)
       },
       service: (id) => {
         if (id === 'notify') {
@@ -375,7 +375,7 @@ describe('ActivityWatchService filter subscription notifications', () => {
       ui: {
         isAuthenticated: () => true,
       },
-      controller: (id) => {
+      action: (id) => {
         if (id === 'social') {
           return {
             followersOf: vi.fn(async () => []),
@@ -403,7 +403,7 @@ describe('ActivityWatchService filter subscription notifications', () => {
             }),
           }
         }
-        throw new Error(`Unknown controller: ${id}`)
+        throw new Error(`Unknown action: ${id}`)
       },
       service: (id) => {
         if (id === 'notify') {

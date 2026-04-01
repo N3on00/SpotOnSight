@@ -142,7 +142,7 @@ class FavoriteWorkflowExecutor:
     def _load_viewer_favorites(self, context: ExecutionContext, _config: dict[str, Any]) -> list[dict[str, Any]]:
         viewer_id = self.actions.me_id(context.principal)
         context.put("viewer_user_id", viewer_id)
-        return list(self.actions.repos.favorites.collection.find({"user_id": viewer_id}).sort("created_at", -1).limit(2000))
+        return self.actions.repos.favorites.find_many_sorted({"user_id": viewer_id}, sort_field="created_at", sort_direction=-1, limit=2000)
 
     def _load_target_user_bundle(self, context: ExecutionContext, _config: dict[str, Any]) -> dict[str, Any]:
         target_id, target_doc = self.actions.user_or_404(as_text(context.get("user_id")))
@@ -151,7 +151,7 @@ class FavoriteWorkflowExecutor:
     def _load_target_user_favorites(self, context: ExecutionContext, _config: dict[str, Any]) -> list[dict[str, Any]]:
         target_user = context.get("target_user") or {}
         target_id = as_text(target_user.get("id"))
-        return list(self.actions.repos.favorites.collection.find({"user_id": target_id}).sort("created_at", -1).limit(2000))
+        return self.actions.repos.favorites.find_many_sorted({"user_id": target_id}, sort_field="created_at", sort_direction=-1, limit=2000)
 
     def _build_add_document(self, context: ExecutionContext, _config: dict[str, Any]) -> dict[str, Any]:
         target_spot = context.get("target_spot") or {}

@@ -38,7 +38,7 @@ async function submitModerationReport(app, {
   if (!normalizedTargetType || !normalizedTargetId) return false
 
   const defaults = reportDefaults(normalizedTargetType)
-  const result = await app.controller('social').reportContent(
+  const result = await app.action('social').reportContent(
     normalizedTargetType,
     normalizedTargetId,
     String(reason || 'other').trim() || 'other',
@@ -49,7 +49,7 @@ async function submitModerationReport(app, {
       level: 'error',
       title: failureTitle || defaults.failureTitle,
       message: failureMessage || defaults.failureMessage,
-      details: app.controller('social').lastError(),
+      details: app.action('social').lastError(),
     })
     return false
   }
@@ -64,39 +64,39 @@ async function submitModerationReport(app, {
 
 export function createSpotCommentActions(app) {
   return {
-    onListComments: (spotId) => app.controller('comments').listBySpot(spotId),
+    onListComments: (spotId) => app.action('comments').listBySpot(spotId),
     onCreateComment: async (spotId, message) => {
-      const created = await app.controller('comments').create(spotId, message)
+      const created = await app.action('comments').create(spotId, message)
       if (!created) {
         notify(app, {
           level: 'error',
           title: 'Comment failed',
           message: 'Could not post your comment.',
-          details: app.controller('comments').lastError(),
+          details: app.action('comments').lastError(),
         })
       }
       return created
     },
     onUpdateComment: async (commentId, message) => {
-      const updated = await app.controller('comments').update(commentId, message)
+      const updated = await app.action('comments').update(commentId, message)
       if (!updated) {
         notify(app, {
           level: 'error',
           title: 'Comment update failed',
           message: 'Could not update this comment.',
-          details: app.controller('comments').lastError(),
+          details: app.action('comments').lastError(),
         })
       }
       return updated
     },
     onDeleteComment: async (commentId) => {
-      const ok = await app.controller('comments').delete(commentId)
+      const ok = await app.action('comments').delete(commentId)
       if (!ok) {
         notify(app, {
           level: 'error',
           title: 'Comment delete failed',
           message: 'Could not delete this comment.',
-          details: app.controller('comments').lastError(),
+          details: app.action('comments').lastError(),
         })
       }
       return ok
@@ -106,13 +106,13 @@ export function createSpotCommentActions(app) {
 
 export function createSpotFavoriteAction(app) {
   return async (spotId, currentlyFavorite) => {
-    const ok = await app.controller('social').toggleFavorite(spotId, currentlyFavorite)
+    const ok = await app.action('social').toggleFavorite(spotId, currentlyFavorite)
     if (!ok) {
       notify(app, {
         level: 'error',
         title: 'Like failed',
         message: 'Could not update like state.',
-        details: app.controller('social').lastError(),
+        details: app.action('social').lastError(),
       })
       return false
     }

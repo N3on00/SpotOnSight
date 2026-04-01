@@ -54,9 +54,9 @@ describe('AuthService API communication', () => {
     const state = createState({ token: '' })
     const service = new TestAuthService(api, state)
 
-    const ok = await service.login('alice', 'pw')
+    const session = await service.login('alice', 'pw')
 
-    expect(ok).toBe(true)
+    expect(session).toEqual(expect.objectContaining({ token: 'token-new' }))
     expect(api.request).toHaveBeenCalledWith(API_ENDPOINTS.AUTH_LOGIN, {
       body: {
         username_or_email: 'alice',
@@ -80,9 +80,9 @@ describe('AuthService API communication', () => {
       .mockResolvedValueOnce(authResponse())
 
     const service = new TestAuthService(api, createState({ token: '' }))
-    const ok = await service.login('alice', 'pw')
+    const session = await service.login('alice', 'pw')
 
-    expect(ok).toBe(true)
+    expect(session).toEqual(expect.objectContaining({ token: 'token-new' }))
     expect(api.request).toHaveBeenNthCalledWith(1, API_ENDPOINTS.AUTH_LOGIN, {
       body: {
         username_or_email: 'alice',
@@ -109,14 +109,14 @@ describe('AuthService API communication', () => {
     api.request.mockResolvedValueOnce(authResponse())
 
     const service = new TestAuthService(api, createState({ token: '' }))
-    const ok = await service.register({
+    const session = await service.register({
       username: 'j\u00f6rg',
       email: 'alice@example.com',
       password: 'pw',
       displayName: 'J\u00f6rg 🚀',
     })
 
-    expect(ok).toBe(true)
+    expect(session).toEqual(expect.objectContaining({ token: 'token-new' }))
     expect(api.request).toHaveBeenCalledWith(API_ENDPOINTS.AUTH_REGISTER, {
       body: {
         username: 'j\u00f6rg',

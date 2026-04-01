@@ -67,12 +67,10 @@ export class AdminService extends ApiStateService {
         },
       })
       const reports = Array.isArray(data) ? data.map((item) => normalizeModerationReport(item)) : []
-      this.state.admin.reports = reports
       this.clearError()
       return reports
     } catch (error) {
       this.captureError(error, 'Could not load moderation reports')
-      this.state.admin.reports = []
       return []
     }
   }
@@ -84,7 +82,6 @@ export class AdminService extends ApiStateService {
         body: payload,
       })
       const report = normalizeModerationReport(data)
-      this.state.admin.reports = this.state.admin.reports.map((item) => item.id === report.id ? report : item)
       this.clearError()
       return report
     } catch (error) {
@@ -102,12 +99,10 @@ export class AdminService extends ApiStateService {
         },
       })
       const users = Array.isArray(data) ? data.map((item) => normalizeAdminUser(item)) : []
-      this.state.admin.users = users
       this.clearError()
       return users
     } catch (error) {
       this.captureError(error, 'Could not load moderated users')
-      this.state.admin.users = []
       return []
     }
   }
@@ -119,7 +114,6 @@ export class AdminService extends ApiStateService {
         body: payload,
       })
       const user = normalizeAdminUser(data)
-      this.state.admin.users = this.state.admin.users.map((item) => item.id === user.id ? user : item)
       this.clearError()
       return user
     } catch (error) {

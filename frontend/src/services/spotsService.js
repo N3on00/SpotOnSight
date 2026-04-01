@@ -11,12 +11,11 @@ export class SpotsService extends ApiStateService {
   async list() {
     try {
       const data = await this.api.request(API_ENDPOINTS.SOCIAL_SPOTS_LIST)
-      this.state.spots = Array.isArray(data) ? data.map((x) => normalizeSpot(x)) : []
+      const spots = Array.isArray(data) ? data.map((x) => normalizeSpot(x)) : []
       this.clearError()
-      return this.state.spots
+      return spots
     } catch (error) {
       this.captureError(error, 'Could not load spots')
-      this.state.spots = []
       return []
     }
   }

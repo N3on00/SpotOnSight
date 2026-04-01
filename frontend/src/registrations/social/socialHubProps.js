@@ -1,9 +1,10 @@
 import { routeToProfile } from '../../router/routeSpec'
-import { controllerLastError, reloadDashboardData, runBooleanAction, runTask } from '../uiShared'
+import { setSocialSearchResults } from '../../state/appMutations'
+import { actionLastError, reloadDashboardData, runBooleanAction, runTask } from '../uiShared'
 
 export function buildSocialHubProps({ app, router }) {
-  const socialError = () => controllerLastError(app, 'social')
-  const usersError = () => controllerLastError(app, 'users')
+  const socialError = () => actionLastError(app, 'social')
+  const usersError = () => actionLastError(app, 'users')
 
   async function refreshAll() {
     await runTask(app, {
@@ -38,8 +39,8 @@ export function buildSocialHubProps({ app, router }) {
       await runTask(app, {
         loadingKey: 'socialSearch',
         task: async () => {
-          const out = await app.controller('users').searchUsers(query, 30)
-          app.state.social.searchResults = Array.isArray(out) ? out : []
+          const out = await app.action('users').searchUsers(query, 30)
+          setSocialSearchResults(app.state, out)
         },
         errorTitle: 'Search failed',
         errorMessage: 'Could not search users.',
@@ -48,49 +49,49 @@ export function buildSocialHubProps({ app, router }) {
     },
     onRefresh: refreshAll,
     onFollow: async (userId) => runSocialMutation({
-      action: () => app.controller('social').follow(userId),
+      action: () => app.action('social').follow(userId),
       loadingKey: 'socialFollow',
       errorTitle: 'Follow failed',
       successTitle: (result) => (result === 'pending' ? 'Request sent' : 'Followed'),
       successMessage: (result) => (result === 'pending' ? 'Waiting for user approval.' : 'User followed.'),
     }),
     onUnfollow: async (userId) => runSocialMutation({
-      action: () => app.controller('social').unfollow(userId),
+      action: () => app.action('social').unfollow(userId),
       loadingKey: 'socialUnfollow',
       errorTitle: 'Unfollow failed',
       successTitle: 'Unfollowed',
       successMessage: 'User unfollowed.',
     }),
     onApproveRequest: async (userId) => runSocialMutation({
-      action: () => app.controller('social').approveRequest(userId),
+      action: () => app.action('social').approveRequest(userId),
       loadingKey: 'socialFollow',
       errorTitle: 'Approve failed',
       successTitle: 'Approved',
       successMessage: 'Follow request approved.',
     }),
     onRejectRequest: async (userId) => runSocialMutation({
-      action: () => app.controller('social').rejectRequest(userId),
+      action: () => app.action('social').rejectRequest(userId),
       loadingKey: 'socialUnfollow',
       errorTitle: 'Reject failed',
       successTitle: 'Rejected',
       successMessage: 'Follow request rejected.',
     }),
     onRemoveFollower: async (userId) => runSocialMutation({
-      action: () => app.controller('social').removeFollower(userId),
+      action: () => app.action('social').removeFollower(userId),
       loadingKey: 'socialUnfollow',
       errorTitle: 'Remove follower failed',
       successTitle: 'Follower removed',
       successMessage: 'Follower removed from your account.',
     }),
     onBlock: async (userId) => runSocialMutation({
-      action: () => app.controller('social').block(userId),
+      action: () => app.action('social').block(userId),
       loadingKey: 'socialUnfollow',
       errorTitle: 'Block failed',
       successTitle: 'Blocked',
       successMessage: 'User blocked.',
     }),
     onUnblock: async (userId) => runSocialMutation({
-      action: () => app.controller('social').unblock(userId),
+      action: () => app.action('social').unblock(userId),
       loadingKey: 'socialFollow',
       errorTitle: 'Unblock failed',
       successTitle: 'Unblocked',

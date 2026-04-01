@@ -1,5 +1,5 @@
-import { getRuntimeServices } from '../core/runtimeRegistry'
 import { BaseService } from './baseService'
+import { getRuntimeBindings } from '../bootstrap/runtimeRegistrations'
 
 const DEFAULT_TICK_INTERVAL_MS = 45000
 
@@ -8,16 +8,17 @@ function hasMethod(target, methodName) {
 }
 
 export class RuntimeService extends BaseService {
-  constructor(ctx, { tickIntervalMs = DEFAULT_TICK_INTERVAL_MS } = {}) {
+  constructor(ctx, { tickIntervalMs = DEFAULT_TICK_INTERVAL_MS, bindings = [] } = {}) {
     super({ serviceName: 'runtime' })
     this.ctx = ctx
+    this._bindingsList = Array.isArray(bindings) && bindings.length ? [...bindings] : getRuntimeBindings()
     this._started = false
     this._tickIntervalMs = Math.max(10000, Number(tickIntervalMs) || DEFAULT_TICK_INTERVAL_MS)
     this._intervalId = null
   }
 
   _bindings() {
-    return getRuntimeServices()
+    return this._bindingsList
   }
 
   _serviceOf(binding) {
