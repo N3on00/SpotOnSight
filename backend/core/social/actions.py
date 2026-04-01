@@ -149,22 +149,6 @@ class SocialActions:
             }
         )
 
-    @staticmethod
-    def _user_summary(self, user_id: str) -> dict[str, Any] | None:
-        return self.moderation_support.user_summary(user_id)
-
-    def _reported_person_id(self, row: dict[str, Any]) -> str:
-        return self.moderation_support.reported_person_id(row)
-
-    def _moderation_report_metrics(self, row: dict[str, Any]) -> tuple[int, int, int]:
-        return self.moderation_support.moderation_report_metrics(row)
-
-    def _moderation_report_public(self, row: dict[str, Any]) -> ModerationReportPublic:
-        return self.moderation_support.moderation_report_public(row)
-
-    def _recalculate_posting_timeout(self, user_id: str) -> tuple[datetime | None, str]:
-        return self.moderation_support.recalculate_posting_timeout(user_id)
-
     def me_id(self, current_user: dict[str, Any]) -> str:
         return viewer_user_id(current_user)
 
